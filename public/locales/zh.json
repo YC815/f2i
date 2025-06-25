@@ -90,5 +90,6 @@
     "langSwitchedToZH": "語言已切換為中文。",
     "scratchHelpTitle": "Scratch 匯入教學",
     "scratchHelpBtn": "🎨 Scratch 匯入教學",
-    "scratchHelpLoadFail": "載入教學內容失敗，請稍後再試"
+    "scratchHelpLoadFail": "載入教學內容失敗，請稍後再試",
+    "fontButtonDisabled": "字體正在載入中，請稍候"
 }

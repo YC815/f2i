@@ -22,33 +22,29 @@ document.addEventListener("DOMContentLoaded", async function () {
     // 1. 先載入翻譯
     await loadTranslations(currentLanguage);
 
-    // 2. 預載入所有按鈕字體
-    await preloadButtonFonts();
-
-    // 3. 設定預設文字（但先不要渲染）
+    // 2. 設定預設文字（但先不要渲染）
     const textInput = document.getElementById("textInput");
     textInput.value = translations.textInputDefault || "範例文字";
 
-    // 4. 自動載入第一個預設字體（可愛字體）並等待完成
-    const firstPresetFont = document.getElementById("loadCuteFont");
-    if (firstPresetFont) {
-      await loadPresetFont("public/fonts/cute.ttf", "fontNameCute");
-      // 不使用 click() 因為我們要確保字體載入完成
-    }
-
-    // 5. 設定預設背景
+    // 3. 設定預設背景
     setPreviewBackground("checker");
 
-    // 6. 初始化其他設定
+    // 4. 初始化其他設定
     setupEventListeners();
     updateDownloadButtonText();
 
-    // 7. 更新UI語言和可見性
+    // 5. 更新UI語言和可見性
     updateUILanguage(currentLanguage);
     updateUIVisibility(currentMode);
 
-    // 8. 最後渲染預覽（此時字體應該已經載入完成）
+    // 6. 初始化字體按鈕為禁用狀態
+    initializeFontButtons();
+
+    // 7. 渲染初始預覽（使用系統字體）
     renderPreview();
+
+    // 8. 開始背景載入字體（不阻塞主線程）
+    startProgressiveFontLoading();
   } catch (error) {
     console.error("初始化失敗:", error);
     showMessage("初始化時發生錯誤，請重新整理頁面", "error");
@@ -87,98 +83,205 @@ function toggleFontSection() {
   }
 }
 
-// 預載入按鈕字體
-async function preloadButtonFonts() {
-  const fontConfigs = [
-    {
-      path: "public/fonts/cute.ttf",
-      name: "CuteFont",
-      buttonId: "loadCuteFont",
-      displayName: "可愛的",
-    },
-    {
-      path: "public/fonts/game.ttf",
-      name: "GameFont",
-      buttonId: "loadGameFont",
-      displayName: "遊戲風",
-    },
-    {
-      path: "public/fonts/hacker.otf",
-      name: "HackerFont",
-      buttonId: "loadHackerFont",
-      displayName: "駭客感",
-    },
-    {
-      path: "public/fonts/magic.ttf",
-      name: "MagicFont",
-      buttonId: "loadMagicFont",
-      displayName: "魔法風",
-    },
-    {
-      path: "public/fonts/martial.otf",
-      name: "MartialFont",
-      buttonId: "loadMartialFont",
-      displayName: "工整的",
-    },
-    {
-      path: "public/fonts/mordan.otf",
-      name: "MordanFont",
-      buttonId: "loadMordanFont",
-      displayName: "武俠感",
-    },
-    {
-      path: "public/fonts/noto.ttf",
-      name: "NotoFont",
-      buttonId: "loadNotoFont",
-      displayName: "日記感",
-    },
-    {
-      path: "public/fonts/write.ttf",
-      name: "WriteFont",
-      buttonId: "loadWriteFont",
-      displayName: "現代感",
-    },
-  ];
+// 字體載入狀態追蹤
+const fontLoadingStatus = new Map();
 
-  console.log("🔄 開始預載入按鈕字體...");
+// 字體設定
+const fontConfigs = [
+  {
+    path: "public/fonts/cute.ttf",
+    name: "CuteFont",
+    buttonId: "loadCuteFont",
+    displayName: "可愛的",
+    i18nKey: "fontCute",
+    presetKey: "fontNameCute",
+  },
+  {
+    path: "public/fonts/game.ttf",
+    name: "GameFont",
+    buttonId: "loadGameFont",
+    displayName: "遊戲風",
+    i18nKey: "fontGame",
+    presetKey: "fontNameGame",
+  },
+  {
+    path: "public/fonts/hacker.otf",
+    name: "HackerFont",
+    buttonId: "loadHackerFont",
+    displayName: "駭客感",
+    i18nKey: "fontHacker",
+    presetKey: "fontNameHacker",
+  },
+  {
+    path: "public/fonts/magic.ttf",
+    name: "MagicFont",
+    buttonId: "loadMagicFont",
+    displayName: "魔法風",
+    i18nKey: "fontMagic",
+    presetKey: "fontNameMagic",
+  },
+  {
+    path: "public/fonts/noto.ttf",
+    name: "NotoFont",
+    buttonId: "loadNotoFont",
+    displayName: "工整的",
+    i18nKey: "fontNoto",
+    presetKey: "fontNameNoto",
+  },
+  {
+    path: "public/fonts/martial.otf",
+    name: "MartialFont",
+    buttonId: "loadMartialFont",
+    displayName: "武俠感",
+    i18nKey: "fontMartial",
+    presetKey: "fontNameMartial",
+  },
+  {
+    path: "public/fonts/write.ttf",
+    name: "WriteFont",
+    buttonId: "loadWriteFont",
+    displayName: "日記感",
+    i18nKey: "fontWrite",
+    presetKey: "fontNameWrite",
+  },
+  {
+    path: "public/fonts/mordan.otf",
+    name: "MordanFont",
+    buttonId: "loadMordanFont",
+    displayName: "現代感",
+    i18nKey: "fontModern",
+    presetKey: "fontNameModern",
+  },
+];
 
-  for (const config of fontConfigs) {
-    try {
-      const response = await fetch(config.path);
-      if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        const fontFace = new FontFace(config.name, arrayBuffer);
-        await fontFace.load();
-        document.fonts.add(fontFace);
+// 初始化字體按鈕為骨架載入狀態
+function initializeFontButtons() {
+  fontConfigs.forEach((config) => {
+    const button = document.getElementById(config.buttonId);
+    if (button) {
+      // 設定按鈕為禁用狀態和骨架載入狀態
+      button.disabled = true;
+      button.classList.add("loading");
+      button.classList.remove(
+        "hover:bg-pink-200",
+        "hover:bg-orange-200",
+        "hover:bg-green-200",
+        "hover:bg-purple-200",
+        "hover:bg-blue-200",
+        "hover:bg-red-200",
+        "hover:bg-yellow-200",
+        "hover:bg-gray-200"
+      );
 
-        // 設定按鈕使用對應的字體
-        const button = document.getElementById(config.buttonId);
-        if (button) {
-          button.style.fontFamily = config.name;
-          // 更新按鈕文字
-          const textSpan = button.querySelector("span") || button;
-          if (textSpan) {
-            textSpan.textContent = config.displayName;
-          }
-        }
+      // 設定載入狀態
+      fontLoadingStatus.set(config.buttonId, "pending");
 
-        console.log(`✅ ${config.name} 按鈕字體載入成功`);
-      } else {
-        console.warn(
-          `⚠️ ${config.name} 按鈕字體載入失敗: HTTP ${response.status}`
-        );
-      }
-    } catch (error) {
-      console.warn(`⚠️ ${config.name} 按鈕字體載入失敗:`, error.message);
+      // 設定按鈕標題提示
+      button.title =
+        translations.fontButtonDisabled || "字體正在載入中，請稍候";
+
+      console.log(`🔒 ${config.displayName} 按鈕已設為骨架載入狀態`);
     }
+  });
+}
+
+// 啟用字體按鈕
+function enableFontButton(buttonId) {
+  const button = document.getElementById(buttonId);
+  if (button) {
+    // 移除骨架載入狀態和禁用狀態
+    button.disabled = false;
+    button.classList.remove("loading");
+
+    // 根據按鈕ID添加對應的hover效果
+    const hoverClasses = {
+      loadCuteFont: "hover:bg-pink-200",
+      loadGameFont: "hover:bg-orange-200",
+      loadHackerFont: "hover:bg-green-200",
+      loadMagicFont: "hover:bg-purple-200",
+      loadNotoFont: "hover:bg-blue-200",
+      loadMartialFont: "hover:bg-red-200",
+      loadWriteFont: "hover:bg-yellow-200",
+      loadMordanFont: "hover:bg-gray-200",
+    };
+
+    if (hoverClasses[buttonId]) {
+      button.classList.add(hoverClasses[buttonId]);
+    }
+
+    // 更新標題提示
+    button.title = "";
+
+    fontLoadingStatus.set(buttonId, "loaded");
+    console.log(`✅ ${buttonId} 按鈕已啟用，骨架載入狀態已移除`);
   }
+}
+
+// 漸進式字體載入
+async function startProgressiveFontLoading() {
+  console.log("🔄 開始漸進式載入字體...");
 
   // 如果是透過檔案系統開啟（file://），提供建議
   if (location.protocol === "file:") {
     console.warn("📌 注意：您正在透過檔案系統開啟此頁面。字體可能無法載入。");
     console.warn("💡 建議：使用本地伺服器或上傳到網頁伺服器來執行此應用。");
-    showMessage(translations.fontLoadFailHint, "info");
+    showMessage(
+      translations.fontLoadFailHint || "建議使用本地伺服器執行以正確載入字體",
+      "info"
+    );
   }
+
+  // 按順序載入字體
+  for (let i = 0; i < fontConfigs.length; i++) {
+    const config = fontConfigs[i];
+
+    try {
+      console.log(`🔄 開始載入字體: ${config.displayName}`);
+
+      const response = await fetch(config.path);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const fontFace = new FontFace(config.name, arrayBuffer);
+      await fontFace.load();
+      document.fonts.add(fontFace);
+
+      // 設定按鈕使用對應的字體
+      const button = document.getElementById(config.buttonId);
+      if (button) {
+        button.style.fontFamily = config.name;
+      }
+
+      // 啟用按鈕（骨架狀態會自動移除）
+      enableFontButton(config.buttonId);
+
+      console.log(`✅ ${config.displayName} 字體載入成功`);
+
+      // 如果是第一個字體（可愛字體），自動套用
+      if (i === 0) {
+        try {
+          await loadPresetFont(config.path, config.presetKey);
+          renderPreview();
+          console.log(`🎯 已自動套用第一個字體: ${config.displayName}`);
+        } catch (error) {
+          console.warn(`⚠️ 自動套用第一個字體失敗:`, error);
+        }
+      }
+
+      // 在每個字體載入完成後稍作延遲，避免阻塞主線程
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    } catch (error) {
+      console.warn(`⚠️ ${config.displayName} 字體載入失敗:`, error.message);
+      fontLoadingStatus.set(config.buttonId, "failed");
+
+      // 即使載入失敗也啟用按鈕，讓用戶可以重試
+      enableFontButton(config.buttonId);
+    }
+  }
+
+  console.log("🎉 字體載入流程完成");
 }
 
 function setupEventListeners() {
@@ -244,43 +347,21 @@ function setupEventListeners() {
     fontFileInput.addEventListener("change", handleFontUpload);
   }
 
-  // 預設字體按鈕
-  const fontButtons = [
-    { id: "loadCuteFont", path: "public/fonts/cute.ttf", key: "fontNameCute" },
-    { id: "loadGameFont", path: "public/fonts/game.ttf", key: "fontNameGame" },
-    {
-      id: "loadHackerFont",
-      path: "public/fonts/hacker.otf",
-      key: "fontNameHacker",
-    },
-    {
-      id: "loadMagicFont",
-      path: "public/fonts/magic.ttf",
-      key: "fontNameMagic",
-    },
-    { id: "loadNotoFont", path: "public/fonts/noto.ttf", key: "fontNameNoto" },
-    {
-      id: "loadMartialFont",
-      path: "public/fonts/martial.otf",
-      key: "fontNameMartial",
-    },
-    {
-      id: "loadWriteFont",
-      path: "public/fonts/write.ttf",
-      key: "fontNameWrite",
-    },
-    {
-      id: "loadMordanFont",
-      path: "public/fonts/mordan.otf",
-      key: "fontNameModern",
-    },
-  ];
-
-  fontButtons.forEach(({ id, path, key }) => {
-    const button = document.getElementById(id);
+  // 預設字體按鈕事件
+  fontConfigs.forEach((config) => {
+    const button = document.getElementById(config.buttonId);
     if (button) {
       button.addEventListener("click", async (event) => {
-        await loadPresetFont(path, key, event);
+        // 檢查字體是否已載入
+        const status = fontLoadingStatus.get(config.buttonId);
+        if (status !== "loaded") {
+          console.log(
+            `⚠️ 字體 ${config.displayName} 尚未載入完成，狀態: ${status}`
+          );
+          return;
+        }
+
+        await loadPresetFont(config.path, config.presetKey, event);
         renderPreview(); // 確保字體載入後更新預覽
       });
     }
@@ -804,9 +885,27 @@ function resetSettings() {
     document.getElementById("fontStatus").classList.add("hidden");
     updateCurrentFontDisplay(translations.defaultFont, "defaultFont");
 
+    // 重設字體按鈕狀態
     document.querySelectorAll(".preset-font-btn").forEach((btn) => {
       btn.classList.remove("ring-2", "ring-blue-500", "bg-blue-100");
+
+      // 如果字體尚未載入，保持禁用狀態和骨架載入狀態
+      const buttonId = btn.id;
+      const status = fontLoadingStatus.get(buttonId);
+      if (status !== "loaded") {
+        btn.disabled = true;
+        btn.classList.add("loading");
+        btn.title = translations.fontButtonDisabled || "字體正在載入中，請稍候";
+      } else {
+        // 已載入的字體確保移除骨架載入狀態
+        btn.classList.remove("loading");
+        btn.title = "";
+      }
     });
+
+    // 重設為系統預設字體
+    currentFont = null;
+    currentFontBuffer = null;
 
     currentPreviewBg = "checker";
     setPreviewBackground("checker");
@@ -1066,6 +1165,27 @@ function updateUIVisibility(mode) {
     const el = document.getElementById(id);
     if (el) {
       el.classList.toggle("hidden", isBabyMode);
+    }
+  });
+
+  // 處理預設字體按鈕的顯示/隱藏
+  const fontButtons = [
+    "loadCuteFont", // 顯示
+    "loadGameFont", // 顯示
+    "loadHackerFont", // 顯示
+    "loadMagicFont", // 顯示
+    "loadNotoFont", // 隱藏
+    "loadMartialFont", // 隱藏
+    "loadWriteFont", // 隱藏
+    "loadMordanFont", // 隱藏
+  ];
+
+  fontButtons.forEach((buttonId, index) => {
+    const button = document.getElementById(buttonId);
+    if (button) {
+      // 在嬰兒模式下，只顯示前4個按鈕（index 0-3）
+      const shouldHide = isBabyMode && index >= 4;
+      button.classList.toggle("hidden", shouldHide);
     }
   });
 
