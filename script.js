@@ -1,5 +1,6 @@
 // 全域變數
 let currentFont = null;
+let currentFontBuffer = null; // 新增：儲存字體 ArrayBuffer
 let canvas = document.getElementById("previewCanvas");
 let ctx = canvas.getContext("2d");
 let currentPreviewBg = "checker"; // 預設為灰白相間
@@ -16,14 +17,42 @@ canvas.height = 200;
 ctx.globalAlpha = 1.0;
 
 // 初始化
-document.addEventListener("DOMContentLoaded", function () {
-  setupEventListeners();
-  updateDownloadButtonText();
-  updatePreviewBackground();
-  renderPreview();
-  preloadButtonFonts();
-  updateUILanguage(currentLanguage); // 初始化語言
-  updateUIVisibility(currentMode); // 初始化UI
+document.addEventListener("DOMContentLoaded", async function () {
+  try {
+    // 1. 先載入翻譯
+    await loadTranslations(currentLanguage);
+
+    // 2. 預載入所有按鈕字體
+    await preloadButtonFonts();
+
+    // 3. 設定預設文字（但先不要渲染）
+    const textInput = document.getElementById("textInput");
+    textInput.value = translations.textInputDefault || "範例文字";
+
+    // 4. 自動載入第一個預設字體（可愛字體）並等待完成
+    const firstPresetFont = document.getElementById("loadCuteFont");
+    if (firstPresetFont) {
+      await loadPresetFont("public/fonts/cute.ttf", "fontNameCute");
+      // 不使用 click() 因為我們要確保字體載入完成
+    }
+
+    // 5. 設定預設背景
+    setPreviewBackground("checker");
+
+    // 6. 初始化其他設定
+    setupEventListeners();
+    updateDownloadButtonText();
+
+    // 7. 更新UI語言和可見性
+    updateUILanguage(currentLanguage);
+    updateUIVisibility(currentMode);
+
+    // 8. 最後渲染預覽（此時字體應該已經載入完成）
+    renderPreview();
+  } catch (error) {
+    console.error("初始化失敗:", error);
+    showMessage("初始化時發生錯誤，請重新整理頁面", "error");
+  }
 });
 
 function showWelcomeMessage() {
@@ -65,41 +94,49 @@ async function preloadButtonFonts() {
       path: "public/fonts/cute.ttf",
       name: "CuteFont",
       buttonId: "loadCuteFont",
+      displayName: "可愛的",
     },
     {
       path: "public/fonts/game.ttf",
       name: "GameFont",
       buttonId: "loadGameFont",
+      displayName: "遊戲風",
     },
     {
       path: "public/fonts/hacker.otf",
       name: "HackerFont",
       buttonId: "loadHackerFont",
+      displayName: "駭客感",
     },
     {
       path: "public/fonts/magic.ttf",
       name: "MagicFont",
       buttonId: "loadMagicFont",
-    },
-    {
-      path: "public/fonts/noto.ttf",
-      name: "NotoFont",
-      buttonId: "loadNotoFont",
+      displayName: "魔法風",
     },
     {
       path: "public/fonts/martial.otf",
       name: "MartialFont",
       buttonId: "loadMartialFont",
-    },
-    {
-      path: "public/fonts/write.ttf",
-      name: "WriteFont",
-      buttonId: "loadWriteFont",
+      displayName: "工整的",
     },
     {
       path: "public/fonts/mordan.otf",
       name: "MordanFont",
       buttonId: "loadMordanFont",
+      displayName: "武俠感",
+    },
+    {
+      path: "public/fonts/noto.ttf",
+      name: "NotoFont",
+      buttonId: "loadNotoFont",
+      displayName: "日記感",
+    },
+    {
+      path: "public/fonts/write.ttf",
+      name: "WriteFont",
+      buttonId: "loadWriteFont",
+      displayName: "現代感",
     },
   ];
 
@@ -114,7 +151,17 @@ async function preloadButtonFonts() {
         await fontFace.load();
         document.fonts.add(fontFace);
 
-        // 字體載入成功後，按鈕會自動應用CSS中定義的字體樣式
+        // 設定按鈕使用對應的字體
+        const button = document.getElementById(config.buttonId);
+        if (button) {
+          button.style.fontFamily = config.name;
+          // 更新按鈕文字
+          const textSpan = button.querySelector("span") || button;
+          if (textSpan) {
+            textSpan.textContent = config.displayName;
+          }
+        }
+
         console.log(`✅ ${config.name} 按鈕字體載入成功`);
       } else {
         console.warn(
@@ -123,7 +170,6 @@ async function preloadButtonFonts() {
       }
     } catch (error) {
       console.warn(`⚠️ ${config.name} 按鈕字體載入失敗:`, error.message);
-      // 載入失敗時會使用CSS中定義的備用字體
     }
   }
 
@@ -137,151 +183,207 @@ async function preloadButtonFonts() {
 
 function setupEventListeners() {
   // 字體區域收起/展開按鈕
-  document
-    .getElementById("fontSectionToggle")
-    .addEventListener("click", toggleFontSection);
+  const fontSectionToggle = document.getElementById("fontSectionToggle");
+  if (fontSectionToggle) {
+    fontSectionToggle.addEventListener("click", toggleFontSection);
+  }
 
   // 自訂檔案上傳按鈕
-  document
-    .getElementById("customFileBtn")
-    .addEventListener("click", () =>
-      document.getElementById("fontFile").click()
-    );
+  const customFileBtn = document.getElementById("customFileBtn");
+  const fontFileInput = document.getElementById("fontFile");
+  if (customFileBtn && fontFileInput) {
+    customFileBtn.addEventListener("click", () => fontFileInput.click());
+  }
 
   // 字體檔案上傳
-  document
-    .getElementById("fontFile")
-    .addEventListener("change", handleFontUpload);
+  if (fontFileInput) {
+    fontFileInput.addEventListener("change", handleFontUpload);
+  }
 
   // 預設字體按鈕
-  document
-    .getElementById("loadCuteFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/cute.ttf", "fontNameCute", event)
-    );
-  document
-    .getElementById("loadGameFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/game.ttf", "fontNameGame", event)
-    );
-  document
-    .getElementById("loadHackerFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/hacker.otf", "fontNameHacker", event)
-    );
-  document
-    .getElementById("loadMagicFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/magic.ttf", "fontNameMagic", event)
-    );
-  document
-    .getElementById("loadNotoFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/noto.ttf", "fontNameNoto", event)
-    );
-  document
-    .getElementById("loadMartialFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/martial.otf", "fontNameMartial", event)
-    );
-  document
-    .getElementById("loadWriteFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/write.ttf", "fontNameWrite", event)
-    );
-  document
-    .getElementById("loadMordanFont")
-    .addEventListener("click", (event) =>
-      loadPresetFont("/fonts/mordan.otf", "fontNameModern", event)
-    );
+  const fontButtons = [
+    { id: "loadCuteFont", path: "public/fonts/cute.ttf", key: "fontNameCute" },
+    { id: "loadGameFont", path: "public/fonts/game.ttf", key: "fontNameGame" },
+    {
+      id: "loadHackerFont",
+      path: "public/fonts/hacker.otf",
+      key: "fontNameHacker",
+    },
+    {
+      id: "loadMagicFont",
+      path: "public/fonts/magic.ttf",
+      key: "fontNameMagic",
+    },
+    { id: "loadNotoFont", path: "public/fonts/noto.ttf", key: "fontNameNoto" },
+    {
+      id: "loadMartialFont",
+      path: "public/fonts/martial.otf",
+      key: "fontNameMartial",
+    },
+    {
+      id: "loadWriteFont",
+      path: "public/fonts/write.ttf",
+      key: "fontNameWrite",
+    },
+    {
+      id: "loadMordanFont",
+      path: "public/fonts/mordan.otf",
+      key: "fontNameModern",
+    },
+  ];
 
-  // 文字輸入
-  document.getElementById("textInput").addEventListener("input", renderPreview);
+  fontButtons.forEach(({ id, path, key }) => {
+    const button = document.getElementById(id);
+    if (button) {
+      button.addEventListener("click", async (event) => {
+        await loadPresetFont(path, key, event);
+        renderPreview(); // 確保字體載入後更新預覽
+      });
+    }
+  });
 
-  // 字體大小滑桿
-  document
-    .getElementById("fontSizeSlider")
-    .addEventListener("input", function () {
-      document.getElementById("fontSizeDisplay").textContent = this.value;
-      renderPreview();
+  // 文字輸入 - 使用 input 和 change 事件
+  const textInput = document.getElementById("textInput");
+  if (textInput) {
+    textInput.addEventListener("input", () => {
+      requestAnimationFrame(renderPreview); // 使用 requestAnimationFrame 優化效能
     });
+    textInput.addEventListener("change", renderPreview);
+  }
 
-  // 文字顏色選擇
+  // 字體大小滑桿 - 使用 input 事件實現即時更新
+  const fontSizeSlider = document.getElementById("fontSizeSlider");
+  if (fontSizeSlider) {
+    fontSizeSlider.addEventListener("input", function () {
+      const fontSizeDisplay = document.getElementById("fontSizeDisplay");
+      if (fontSizeDisplay) {
+        fontSizeDisplay.textContent = this.value;
+      }
+      requestAnimationFrame(renderPreview);
+    });
+  }
+
+  // 文字顏色選擇 - 所有顏色相關的變更都即時更新
   document.querySelectorAll('input[name="text_color"]').forEach((radio) => {
-    radio.addEventListener("change", renderPreview);
+    radio.addEventListener("change", () =>
+      requestAnimationFrame(renderPreview)
+    );
   });
 
-  // 自訂顏色
-  document.getElementById("customColor").addEventListener("input", function () {
-    // 自動選中自訂顏色選項
-    document.querySelector(
-      'input[name="text_color"][value="custom"]'
-    ).checked = true;
-    renderPreview();
-  });
+  // 自訂顏色 - 使用 input 事件實現即時更新
+  const customColor = document.getElementById("customColor");
+  if (customColor) {
+    customColor.addEventListener("input", function () {
+      const customColorRadio = document.querySelector(
+        'input[name="text_color"][value="custom"]'
+      );
+      if (customColorRadio) {
+        customColorRadio.checked = true;
+      }
+      requestAnimationFrame(renderPreview);
+    });
+  }
 
   // 外框選項
-  document.getElementById("addOutline").addEventListener("change", function () {
-    document
-      .getElementById("outlineOptions")
-      .classList.toggle("hidden", !this.checked);
-    renderPreview();
-  });
-
-  // 外框寬度
-  document
-    .getElementById("outlineWidthSlider")
-    .addEventListener("input", function () {
-      document.getElementById("outlineWidthDisplay").textContent = this.value;
-      renderPreview();
+  const addOutline = document.getElementById("addOutline");
+  const outlineOptions = document.getElementById("outlineOptions");
+  if (addOutline && outlineOptions) {
+    addOutline.addEventListener("change", function () {
+      outlineOptions.classList.toggle("hidden", !this.checked);
+      requestAnimationFrame(renderPreview);
     });
+  }
+
+  // 外框寬度 - 使用 input 事件實現即時更新
+  const outlineWidthSlider = document.getElementById("outlineWidthSlider");
+  if (outlineWidthSlider) {
+    outlineWidthSlider.addEventListener("input", function () {
+      const outlineWidthDisplay = document.getElementById(
+        "outlineWidthDisplay"
+      );
+      if (outlineWidthDisplay) {
+        outlineWidthDisplay.textContent = this.value;
+      }
+      requestAnimationFrame(renderPreview);
+    });
+  }
 
   // 外框顏色選擇
   document.querySelectorAll('input[name="outline_color"]').forEach((radio) => {
-    radio.addEventListener("change", renderPreview);
+    radio.addEventListener("change", () =>
+      requestAnimationFrame(renderPreview)
+    );
   });
 
-  // 自訂外框顏色
-  document
-    .getElementById("customOutlineColor")
-    .addEventListener("input", function () {
-      // 自動選中自訂外框顏色選項
-      document.querySelector(
+  // 自訂外框顏色 - 使用 input 事件實現即時更新
+  const customOutlineColor = document.getElementById("customOutlineColor");
+  if (customOutlineColor) {
+    customOutlineColor.addEventListener("input", function () {
+      const customOutlineColorRadio = document.querySelector(
         'input[name="outline_color"][value="custom"]'
-      ).checked = true;
-      renderPreview();
+      );
+      if (customOutlineColorRadio) {
+        customOutlineColorRadio.checked = true;
+      }
+      requestAnimationFrame(renderPreview);
     });
+  }
 
   // 預覽背景控制按鈕
-  document
-    .getElementById("previewBgChecker")
-    .addEventListener("click", () => setPreviewBackground("checker"));
-  document
-    .getElementById("previewBgBlack")
-    .addEventListener("click", () => setPreviewBackground("black"));
-  document
-    .getElementById("previewBgWhite")
-    .addEventListener("click", () => setPreviewBackground("white"));
+  const previewBgChecker = document.getElementById("previewBgChecker");
+  const previewBgBlack = document.getElementById("previewBgBlack");
+  const previewBgWhite = document.getElementById("previewBgWhite");
+
+  if (previewBgChecker) {
+    previewBgChecker.addEventListener("click", () => {
+      setPreviewBackground("checker");
+      requestAnimationFrame(renderPreview);
+    });
+  }
+  if (previewBgBlack) {
+    previewBgBlack.addEventListener("click", () => {
+      setPreviewBackground("black");
+      requestAnimationFrame(renderPreview);
+    });
+  }
+  if (previewBgWhite) {
+    previewBgWhite.addEventListener("click", () => {
+      setPreviewBackground("white");
+      requestAnimationFrame(renderPreview);
+    });
+  }
 
   // 輸出格式選項
-  document
-    .getElementById("usePngOutput")
-    .addEventListener("change", updateDownloadButtonText);
+  const usePngOutput = document.getElementById("usePngOutput");
+  if (usePngOutput) {
+    usePngOutput.addEventListener("change", updateDownloadButtonText);
+  }
 
   // 按鈕事件
-  document
-    .getElementById("downloadBtn")
-    .addEventListener("click", downloadImage);
-  document.getElementById("copyBtn").addEventListener("click", copyToClipboard);
-  document.getElementById("resetBtn").addEventListener("click", resetSettings);
+  const downloadBtn = document.getElementById("downloadBtn");
+  const copyBtn = document.getElementById("copyBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", downloadImage);
+  }
+  if (copyBtn) {
+    copyBtn.addEventListener("click", copyToClipboard);
+  }
+  if (resetBtn) {
+    resetBtn.addEventListener("click", resetSettings);
+  }
 
   // 浮動按鈕事件
-  document
-    .getElementById("modeToggleBtn")
-    .addEventListener("click", toggleMode);
-  document
-    .getElementById("languageToggleBtn")
-    .addEventListener("click", toggleLanguage);
+  const modeToggleBtn = document.getElementById("modeToggleBtn");
+  const languageToggleBtn = document.getElementById("languageToggleBtn");
+
+  if (modeToggleBtn) {
+    modeToggleBtn.addEventListener("click", toggleMode);
+  }
+  if (languageToggleBtn) {
+    languageToggleBtn.addEventListener("click", toggleLanguage);
+  }
 }
 
 async function handleFontUpload(event) {
@@ -295,11 +397,19 @@ async function handleFontUpload(event) {
 
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const fontFace = new FontFace("CustomFont", arrayBuffer);
+    const fontName = "CustomFont_" + Math.random().toString(36).substr(2, 9);
+    const fontFace = new FontFace(fontName, arrayBuffer);
     await fontFace.load();
 
+    document.fonts.forEach((font) => {
+      if (font.family.startsWith("CustomFont_")) {
+        document.fonts.delete(font);
+      }
+    });
+
     document.fonts.add(fontFace);
-    currentFont = "CustomFont";
+    currentFont = fontName;
+    currentFontBuffer = arrayBuffer;
 
     statusEl.className = "text-xs text-green-600";
     statusEl.textContent = translations.fontLoadSuccess.replace(
@@ -308,16 +418,9 @@ async function handleFontUpload(event) {
     );
 
     document.getElementById("fileNameDisplay").textContent = file.name;
-
-    // 更新當前字體顯示（去掉副檔名）
     const fileName = file.name.replace(/\.[^/.]+$/, "");
     updateCurrentFontDisplay(fileName);
-
     renderPreview();
-    showMessage(
-      translations.fontLoadSuccess.replace("{fileName}", file.name),
-      "success"
-    );
   } catch (error) {
     console.error("字體載入失敗:", error);
     statusEl.className = "text-xs text-red-600";
@@ -327,23 +430,20 @@ async function handleFontUpload(event) {
 }
 
 // 載入預設字體函數
-async function loadPresetFont(fontPath, fontKey, event) {
+async function loadPresetFont(fontPath, fontKey, event = null) {
   const fontName = translations[fontKey] || fontKey;
   const statusEl = document.getElementById("fontStatus");
   statusEl.className = "text-xs text-blue-600";
-  statusEl.textContent = translations.fontPresetLoading.replace(
-    "{fontName}",
-    fontName
-  );
+  statusEl.textContent =
+    translations.fontPresetLoading?.replace("{fontName}", fontName) ||
+    `正在載入字體：${fontName}...`;
   statusEl.classList.remove("hidden");
 
-  // 重設所有按鈕狀態
   document.querySelectorAll(".preset-font-btn").forEach((btn) => {
     btn.classList.remove("ring-2", "ring-blue-500", "bg-blue-100");
   });
 
   try {
-    // 嘗試載入字體檔案
     const response = await fetch(
       fontPath.startsWith("public/") ? fontPath : "public" + fontPath
     );
@@ -354,20 +454,21 @@ async function loadPresetFont(fontPath, fontKey, event) {
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const fontFace = new FontFace("PresetFont", arrayBuffer);
+    const uniqueFontName =
+      "PresetFont_" + Math.random().toString(36).substr(2, 9);
+    const fontFace = new FontFace(uniqueFontName, arrayBuffer);
     await fontFace.load();
 
-    // 移除之前的預設字體（如果存在）
-    for (const font of document.fonts) {
-      if (font.family === "PresetFont") {
+    document.fonts.forEach((font) => {
+      if (font.family.startsWith("PresetFont_")) {
         document.fonts.delete(font);
       }
-    }
+    });
 
     document.fonts.add(fontFace);
-    currentFont = "PresetFont";
+    currentFont = uniqueFontName;
+    currentFontBuffer = arrayBuffer;
 
-    // 高亮選中的按鈕
     if (event && event.target) {
       const clickedBtn = event.target.closest(".preset-font-btn");
       if (clickedBtn) {
@@ -376,39 +477,39 @@ async function loadPresetFont(fontPath, fontKey, event) {
     }
 
     statusEl.className = "text-xs text-green-600";
-    statusEl.textContent = translations.fontPresetLoadSuccess.replace(
-      "{fontName}",
-      fontName
-    );
+    statusEl.textContent =
+      translations.fontPresetLoadSuccess?.replace("{fontName}", fontName) ||
+      `${fontName} 載入成功！`;
 
-    // 更新當前字體顯示
     updateCurrentFontDisplay(fontName, fontKey);
-
-    // 清除檔案輸入
     document.getElementById("fontFile").value = "";
 
-    renderPreview();
-    showMessage(
-      translations.fontPresetLoadSuccess.replace("{fontName}", fontName),
-      "success"
-    );
+    return true;
   } catch (error) {
     console.error("預設字體載入失敗:", error);
     statusEl.className = "text-xs text-red-600";
-    statusEl.textContent = translations.fontPresetLoadFail
-      .replace("{fontName}", fontName)
-      .replace("{errorMessage}", error.message);
+    statusEl.textContent =
+      translations.fontPresetLoadFail
+        ?.replace("{fontName}", fontName)
+        ?.replace("{errorMessage}", error.message) ||
+      `${fontName} 載入失敗：${error.message}`;
 
-    // 提供解決方案提示
-    showMessage(
-      translations.fontLoadFailHint2.replace("{fontName}", fontName),
-      "error"
-    );
+    if (event) {
+      showMessage(
+        translations.fontLoadFailHint2?.replace("{fontName}", fontName) ||
+          `${fontName} 載入失敗，請檢查網路連線`,
+        "error"
+      );
 
-    // 建議使用者手動上傳字體
-    setTimeout(() => {
-      showMessage(translations.fontLoadFailHint3, "info");
-    }, 3000);
+      setTimeout(() => {
+        showMessage(
+          translations.fontLoadFailHint3 || "建議手動上傳字體",
+          "info"
+        );
+      }, 3000);
+    }
+
+    return false;
   }
 }
 
@@ -575,182 +676,39 @@ function updateImageInfo() {
   const dimensions = `${canvas.width} × ${canvas.height}`;
   document.getElementById("imageDimensions").textContent = dimensions;
 
-  const usePng = document.getElementById("usePngOutput").checked;
-
-  if (usePng) {
-    // PNG檔案大小估算
-    const dataURL = canvas.toDataURL();
-    const base64Length = dataURL.split(",")[1].length;
-    const sizeInBytes = (base64Length * 3) / 4;
-    const sizeInKB = (sizeInBytes / 1024).toFixed(1);
-    document.getElementById(
-      "fileSize"
-    ).textContent = `${translations.fileSizeApprox} ${sizeInKB} KB (PNG)`;
-  } else {
-    // SVG檔案大小估算
-    try {
-      const svgContent = generateSVG();
-      const sizeInBytes = new Blob([svgContent]).size;
-      const sizeInKB = (sizeInBytes / 1024).toFixed(1);
-      document.getElementById(
-        "fileSize"
-      ).textContent = `${translations.fileSizeApprox} ${sizeInKB} KB (SVG)`;
-    } catch (error) {
-      // 如果SVG生成失敗（例如外框選項還未載入），顯示預估大小
-      document.getElementById(
-        "fileSize"
-      ).textContent = `${translations.fileSizeApprox} 2-5 KB (SVG)`;
-    }
-  }
+  // 只顯示 PNG 檔案大小
+  const dataURL = canvas.toDataURL();
+  const base64Length = dataURL.split(",")[1].length;
+  const sizeInBytes = (base64Length * 3) / 4;
+  const sizeInKB = (sizeInBytes / 1024).toFixed(1);
+  document.getElementById(
+    "fileSize"
+  ).textContent = `${translations.fileSizeApprox} ${sizeInKB} KB (PNG)`;
 
   document.getElementById("imageInfo").classList.remove("hidden");
 }
 
 function updateDownloadButtonText() {
-  const usePng = document.getElementById("usePngOutput").checked;
+  // 只顯示 PNG
   const btnTextEl = document.getElementById("downloadBtnText");
-  const key = usePng ? "downloadBtnPNG" : "downloadBtnSVG";
-  btnTextEl.textContent = translations[key];
-  btnTextEl.dataset.i18n = key;
-}
-
-function generateSVG() {
-  const textInput = document.getElementById("textInput");
-  const text = textInput.value || textInput.placeholder;
-  const fontSize = parseInt(document.getElementById("fontSizeSlider").value);
-  const textColor = getTextColor();
-  const addOutline = document.getElementById("addOutline").checked;
-  const outlineWidth = parseInt(
-    document.getElementById("outlineWidthSlider").value
-  );
-
-  // 處理多行文字
-  const lines = text.split("\n");
-
-  // 設定字體
-  let fontFamily = currentFont || "Arial, sans-serif";
-
-  // 創建臨時canvas來測量文字尺寸
-  const tempCanvas = document.createElement("canvas");
-  const tempCtx = tempCanvas.getContext("2d");
-  tempCtx.font = `${fontSize}px ${fontFamily}`;
-
-  // 計算所有行的尺寸
-  let maxWidth = 0;
-  lines.forEach((line) => {
-    const metrics = tempCtx.measureText(line);
-    maxWidth = Math.max(maxWidth, metrics.width);
-  });
-
-  const lineHeight = fontSize * 1.4;
-  const totalHeight = lines.length * lineHeight;
-
-  // 計算SVG尺寸
-  const padding = 60;
-  const extraSpace = addOutline ? outlineWidth * 2 : 0;
-  const svgWidth = Math.max(400, maxWidth + padding + extraSpace);
-  const svgHeight = Math.max(200, totalHeight + padding + extraSpace);
-
-  // 開始構建SVG
-  let svgContent = `<svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">`;
-
-  // 添加字體定義（如果有自訂字體）
-  if (currentFont) {
-    svgContent += `<defs>
-      <style>
-        @font-face {
-          font-family: '${currentFont}';
-          /* 註：SVG中的字體需要在CSS中定義或使用Web字體 */
-        }
-      </style>
-    </defs>`;
-  }
-
-  // SVG 背景永遠保持透明
-
-  // 計算起始位置
-  const startY = (svgHeight - totalHeight) / 2 + fontSize * 0.8;
-  const centerX = svgWidth / 2;
-
-  // 繪製每一行文字
-  lines.forEach((line, index) => {
-    if (line.trim()) {
-      const y = startY + index * lineHeight;
-
-      // 文字外框
-      if (addOutline) {
-        const outlineColor = getOutlineColor(textColor);
-        svgContent += `<text x="${centerX}" y="${y}" font-family="${fontFamily}" font-size="${fontSize}" text-anchor="middle" fill="none" stroke="${outlineColor}" stroke-width="${outlineWidth}" stroke-linejoin="round">${escapeXml(
-          line
-        )}</text>`;
-      }
-
-      // 主要文字
-      svgContent += `<text x="${centerX}" y="${y}" font-family="${fontFamily}" font-size="${fontSize}" text-anchor="middle" fill="${textColor}">${escapeXml(
-        line
-      )}</text>`;
-    }
-  });
-
-  svgContent += "</svg>";
-  return svgContent;
-}
-
-function escapeXml(text) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  btnTextEl.textContent = translations["downloadBtnPNG"];
+  btnTextEl.dataset.i18n = "downloadBtnPNG";
 }
 
 function downloadImage() {
-  const usePng = document.getElementById("usePngOutput").checked;
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
   const link = document.createElement("a");
-
-  if (usePng) {
-    // PNG輸出 - 支援透明背景
-    link.download = `font-image_${timestamp}.png`;
-    link.href = canvas.toDataURL("image/png");
-    showMessage(translations.downloadSuccessPNG, "success");
-  } else {
-    // SVG輸出
-    const svgContent = generateSVG();
-    const blob = new Blob([svgContent], { type: "image/svg+xml" });
-    link.download = `font-image_${timestamp}.svg`;
-    link.href = URL.createObjectURL(blob);
-    showMessage(translations.downloadSuccessSVG, "success");
-  }
-
+  link.download = `font-image_${timestamp}.png`;
+  link.href = canvas.toDataURL("image/png");
   link.click();
-
-  // 清理URL物件
-  if (!usePng) {
-    setTimeout(() => URL.revokeObjectURL(link.href), 100);
-  }
 }
 
 async function copyToClipboard() {
   try {
-    const usePng = document.getElementById("usePngOutput").checked;
-
-    if (usePng) {
-      // 複製PNG圖片 - 支援透明背景
-      const blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/png")
-      );
-      await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": blob }),
-      ]);
-      showMessage(translations.copySuccessPNG, "success");
-    } else {
-      // 複製SVG文字內容
-      const svgContent = generateSVG();
-      await navigator.clipboard.writeText(svgContent);
-      showMessage(translations.copySuccessSVG, "success");
-    }
+    const blob = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/png")
+    );
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 
     const btn = document.getElementById("copyBtn");
     const originalContent = btn.innerHTML;
@@ -758,7 +716,6 @@ async function copyToClipboard() {
 
     setTimeout(() => {
       btn.innerHTML = originalContent;
-      // Re-add the key for future language switches
       btn.querySelector("span").dataset.i18n = "copyBtn";
     }, 2000);
   } catch (error) {
@@ -769,7 +726,6 @@ async function copyToClipboard() {
 
 function resetSettings() {
   if (confirm(translations.resetConfirm)) {
-    // 重設表單
     document.getElementById("fontFile").value = "";
     document.getElementById("fileNameDisplay").textContent =
       translations.noFileChosen;
@@ -793,28 +749,19 @@ function resetSettings() {
     ).checked = true;
     document.getElementById("customOutlineColor").value = "#000000";
     document.getElementById("customColor").value = "#ff0000";
-    document.getElementById("usePngOutput").checked = false;
 
-    // 重設字體
     currentFont = null;
     document.getElementById("fontStatus").classList.add("hidden");
     updateCurrentFontDisplay(translations.defaultFont, "defaultFont");
 
-    // 重設預設字體按鈕狀態
     document.querySelectorAll(".preset-font-btn").forEach((btn) => {
       btn.classList.remove("ring-2", "ring-blue-500", "bg-blue-100");
     });
 
-    // 重設預覽背景
     currentPreviewBg = "checker";
     setPreviewBackground("checker");
-
-    // 更新下載按鈕文字
     updateDownloadButtonText();
-
-    // 重新渲染
     renderPreview();
-    showMessage(translations.settingsReset, "success");
   }
 }
 
@@ -919,27 +866,21 @@ function toggleMode() {
   const modeToggleBtn = document.getElementById("modeToggleBtn");
 
   if (currentMode === "baby") {
-    // 切換到嬰兒模式
     engineerIcon.classList.add("hidden");
     babyIcon.classList.remove("hidden");
     modeToggleBtn.classList.remove("hover:border-blue-300");
     modeToggleBtn.classList.add("hover:border-pink-300");
     modeToggleBtn.title = translations.modeToggleTitleCustom;
-    showMessage(translations.switchToBabyMode, "success");
   } else {
-    // 切換到工程師模式
     babyIcon.classList.add("hidden");
     engineerIcon.classList.remove("hidden");
     modeToggleBtn.classList.remove("hover:border-pink-300");
     modeToggleBtn.classList.add("hover:border-blue-300");
     modeToggleBtn.title = translations.modeToggleTitle;
-    showMessage(translations.switchToEngineerMode, "success");
   }
 
-  // 更新UI顯示
   updateUIVisibility(currentMode);
 
-  // 添加按鈕點擊動畫效果
   modeToggleBtn.style.transform = "scale(0.95)";
   setTimeout(() => {
     modeToggleBtn.style.transform = "";
@@ -949,13 +890,7 @@ function toggleMode() {
 // 語言切換功能
 async function toggleLanguage() {
   currentLanguage = currentLanguage === "zh" ? "en" : "zh";
-
   await updateUILanguage(currentLanguage);
-
-  // Show confirmation message using the new language
-  const messageKey =
-    currentLanguage === "en" ? "langSwitchedToEN" : "langSwitchedToZH";
-  showMessage(translations[messageKey], "success");
 
   const languageIndicator = document.getElementById("languageIndicator");
   const languageToggleBtn = document.getElementById("languageToggleBtn");
@@ -968,7 +903,6 @@ async function toggleLanguage() {
     languageIndicator.classList.add("bg-green-500");
   }
 
-  // 添加按鈕點擊動畫效果
   languageToggleBtn.style.transform = "scale(0.95)";
   setTimeout(() => {
     languageToggleBtn.style.transform = "";

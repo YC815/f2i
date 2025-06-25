@@ -1,22 +1,66 @@
-/* 自訂滑桿樣式 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自訂樣式 */
+.slider {
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  outline: none;
+  -webkit-transition: 0.2s;
+  transition: opacity 0.2s;
+}
+
 .slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
   appearance: none;
-  height: 20px;
-  width: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #3b82f6;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: #2563eb;
+  transform: scale(1.1);
 }
 
 .slider::-moz-range-thumb {
-  height: 20px;
-  width: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #3b82f6;
   cursor: pointer;
+  transition: all 0.2s ease-in-out;
   border: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb:hover {
+  background: #2563eb;
+  transform: scale(1.1);
+}
+
+.preview-bg-button.active {
+  @apply ring-2 ring-blue-500;
+}
+
+.toast-message {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* 載入動畫 */
@@ -49,29 +93,12 @@
   top: 20px;
   right: 20px;
   z-index: 1000;
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
 }
 
 /* 預覽背景按鈕樣式 */
 .preview-bg-button {
   position: relative;
   transition: all 0.2s ease;
-}
-
-.preview-bg-button.active {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .preview-bg-button:hover {

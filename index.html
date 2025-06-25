@@ -3,9 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title data-i18n="pageTitle">字體圖片產生器 - 純前端版本</title>
+    <title data-i18n="pageTitle">字體圖片產生器</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "blue-50": "#eff6ff",
+              "blue-100": "#dbeafe",
+              "blue-600": "#2563eb",
+              "blue-700": "#1d4ed8",
+            },
+          },
+        },
+      };
+    </script>
+    <!-- 自訂 Tailwind 樣式 -->
+    <style type="text/tailwindcss">
+      @layer utilities {
+        .slider {
+          @apply appearance-none h-2 bg-gray-200 rounded-lg outline-none;
+          -webkit-appearance: none;
+        }
+        .slider::-webkit-slider-thumb {
+          @apply appearance-none w-4 h-4 bg-blue-600 rounded-full cursor-pointer hover:bg-blue-700 hover:scale-110 transition-all duration-200;
+          -webkit-appearance: none;
+        }
+        .slider::-moz-range-thumb {
+          @apply w-4 h-4 bg-blue-600 rounded-full cursor-pointer hover:bg-blue-700 hover:scale-110 transition-all duration-200 border-0;
+        }
+        .preview-bg-button.active {
+          @apply ring-2 ring-blue-500;
+        }
+        .toast-message {
+          animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      }
+    </style>
     <!-- 自訂樣式 -->
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -544,26 +590,6 @@
                 class="max-w-full h-auto mx-auto border rounded shadow-sm"
                 style="max-height: 500px; background: transparent"
               ></canvas>
-            </div>
-
-            <!-- 輸出格式選項 -->
-            <div
-              id="outputFormatSection"
-              class="mb-4 bg-gray-50 rounded-lg p-3"
-            >
-              <label class="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="usePngOutput"
-                  class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span class="text-sm font-medium text-gray-700">
-                  <span data-i18n="outputFormatLabel">🖼️ 使用 PNG 輸出</span>
-                  <span class="text-gray-500" data-i18n="outputFormatHelp"
-                    >(預設為SVG向量圖)</span
-                  >
-                </span>
-              </label>
             </div>
 
             <div class="space-y-3">
