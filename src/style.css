@@ -1,0 +1,307 @@
+/* 自訂滑桿樣式 */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 載入動畫 */
+.loading {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 成功提示 */
+.success-message {
+  background: #10b981;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* 預覽背景按鈕樣式 */
+.preview-bg-button {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.preview-bg-button.active {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.preview-bg-button:hover {
+  transform: translateY(-1px);
+}
+
+/* 預設字體按鈕樣式 */
+.preset-font-btn {
+  position: relative;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 16px;
+  padding: 12px 16px;
+}
+
+.preset-font-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.preset-font-btn:active {
+  transform: translateY(0);
+}
+
+.preset-font-btn.selected {
+  ring: 2px;
+  ring-color: #3b82f6;
+  background-color: #dbeafe;
+}
+
+/* 各字體按鈕的專屬字體樣式 */
+#loadCuteFont {
+  font-family: "CuteFont", "微軟正黑體", sans-serif;
+}
+
+#loadGameFont {
+  font-family: "GameFont", "Courier New", monospace;
+}
+
+#loadHackerFont {
+  font-family: "HackerFont", "Consolas", monospace;
+}
+
+#loadMagicFont {
+  font-family: "MagicFont", "Times New Roman", serif;
+}
+
+#loadNotoFont {
+  font-family: "NotoFont", "微軟正黑體", sans-serif;
+}
+
+#loadMartialFont {
+  font-family: "MartialFont", "標楷體", serif;
+}
+
+#loadWriteFont {
+  font-family: "WriteFont", "新細明體", serif;
+}
+
+#loadMordanFont {
+  font-family: "MordanFont", "Arial", sans-serif;
+}
+
+/* 字體區域收起/展開動畫 */
+#fontSectionContent {
+  max-height: none;
+  transition: max-height 0.3s ease-in-out;
+}
+
+#fontSectionContent.collapsed {
+  max-height: 0 !important;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* 收起按鈕樣式優化 */
+#fontSectionToggle {
+  transition: all 0.2s ease;
+}
+
+#fontSectionToggle:hover {
+  transform: scale(1.05);
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .grid-cols-1.lg\\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 浮動按鈕樣式 */
+.floating-btn {
+  position: relative;
+  backdrop-filter: blur(10px);
+  background-color: rgba(255, 255, 255, 0.95);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.floating-btn:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.floating-btn:active {
+  transform: translateY(-1px) scale(1.02);
+  transition-duration: 0.1s;
+}
+
+/* 按鈕動態效果 */
+.floating-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    transparent 70%,
+    rgba(255, 255, 255, 0.3) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.floating-btn:hover::before {
+  opacity: 1;
+}
+
+/* 模式切換按鈕特殊效果 */
+#modeToggleBtn {
+  animation: float 6s ease-in-out infinite;
+}
+
+#modeToggleBtn:hover {
+  animation-play-state: paused;
+}
+
+/* 語言切換按鈕特殊效果 */
+#languageToggleBtn {
+  animation: float 6s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+#languageToggleBtn:hover {
+  animation-play-state: paused;
+}
+
+/* 浮動動畫 */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* 語言指示器動畫 */
+#languageIndicator {
+  transition: all 0.3s ease;
+  animation: pulse-indicator 2s ease-in-out infinite;
+}
+
+@keyframes pulse-indicator {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* 響應式調整 - 浮動按鈕 */
+@media (max-width: 768px) {
+  .fixed.top-6.right-6 {
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .floating-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .floating-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .floating-btn span {
+    font-size: 1.25rem;
+  }
+
+  #languageIndicator {
+    font-size: 0.6rem;
+    bottom: -0.125rem;
+    right: -0.125rem;
+  }
+}
+
+/* Toast 訊息樣式 */
+.toast-message {
+  max-width: 320px;
+  min-width: 200px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Toast 訊息響應式優化 */
+@media (max-width: 768px) {
+  .toast-message {
+    right: 1rem !important;
+    left: 1rem !important;
+    max-width: none;
+    width: auto;
+    font-size: 0.85rem;
+  }
+}

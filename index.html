@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-i18n-lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="pageTitle">字體圖片產生器 - 純前端版本</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 自訂樣式 -->
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-8">
+    <!-- 浮動按鈕組 -->
+    <div class="fixed top-6 right-6 z-50 flex gap-3">
+      <!-- 模式切換按鈕 (工程師/嬰兒) -->
+      <button
+        id="modeToggleBtn"
+        class="floating-btn w-12 h-12 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center border-2 border-gray-200 hover:border-blue-300"
+        title="切換模式"
+        data-i18n-title="modeToggleTitle"
+      >
+        <span id="engineerIcon" class="text-2xl"> 👨‍💻 </span>
+        <span id="babyIcon" class="text-2xl hidden"> 👶 </span>
+      </button>
+
+      <!-- 語言切換按鈕 -->
+      <button
+        id="languageToggleBtn"
+        class="floating-btn w-12 h-12 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center border-2 border-gray-200 hover:border-green-300"
+        title="切換語言"
+        data-i18n-title="languageToggleTitle"
+      >
+        <svg
+          class="w-6 h-6 text-green-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+          />
+        </svg>
+        <span
+          id="languageIndicator"
+          class="absolute -bottom-1 -right-1 bg-green-500 text-white text-xs px-1 rounded-full font-bold"
+          data-i18n="languageIndicator"
+          >中</span
+        >
+      </button>
+    </div>
+
+    <div class="container mx-auto px-4 max-w-6xl">
+      <!-- 標題區域 -->
+      <div id="pageHeader" class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800 mb-2" data-i18n="mainTitle">
+          🎨 字體圖片產生器
+        </h1>
+        <div class="flex flex-wrap justify-center gap-2 text-sm">
+          <span
+            class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full"
+            data-i18n="tagRealtimePreview"
+            >即時預覽</span
+          >
+          <span
+            class="bg-green-100 text-green-800 px-3 py-1 rounded-full"
+            data-i18n="tagFontCaching"
+            >字體緩存</span
+          >
+          <span
+            class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full"
+            data-i18n="tagOneClickDownload"
+            >一鍵下載</span
+          >
+          <span
+            class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full"
+            data-i18n="tagClipboardSupport"
+            >剪貼簿支援</span
+          >
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- 左側區域 -->
+        <div class="space-y-6">
+          <!-- 字體區 -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2
+              class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between"
+            >
+              <div class="flex items-center gap-3">
+                <span data-i18n="fontSettingsTitle">🎨 字體設定</span>
+                <span
+                  id="currentFontDisplay"
+                  class="text-sm text-gray-500 font-normal"
+                  data-i18n="defaultFont"
+                  >系統預設</span
+                >
+              </div>
+              <button
+                id="fontSectionToggle"
+                class="text-gray-500 hover:text-gray-700 transition-all duration-200 w-8 h-8 rounded-full border-2 border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 flex items-center justify-center shadow-sm hover:shadow-md"
+                title="收起/展開字體設定"
+                data-i18n-title="toggleFontSection"
+              >
+                <svg
+                  id="fontToggleIcon"
+                  class="w-4 h-4 transform transition-transform duration-200"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"
+                  ></path>
+                </svg>
+              </button>
+            </h2>
+
+            <div
+              id="fontSectionContent"
+              class="space-y-6 transition-all duration-300 ease-in-out overflow-hidden"
+            >
+              <!-- 字體檔案上傳 -->
+              <div>
+                <div id="fontUploadGroup">
+                  <label
+                    class="block text-sm font-medium text-gray-700 mb-2"
+                    data-i18n="fontFileLabel"
+                  >
+                    📎 字體檔案
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="file"
+                      id="fontFile"
+                      accept=".ttf,.otf,.woff,.woff2"
+                      class="hidden"
+                    />
+                    <button
+                      type="button"
+                      id="customFileBtn"
+                      data-i18n="chooseFile"
+                      class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                    >
+                      選擇檔案
+                    </button>
+                    <span
+                      id="fileNameDisplay"
+                      class="text-sm text-gray-500"
+                      data-i18n="noFileChosen"
+                      >尚未選擇任何檔案</span
+                    >
+                  </div>
+                  <p
+                    class="text-xs text-gray-500 mt-1"
+                    data-i18n="fontFileHelp"
+                  >
+                    支援 TTF、OTF、WOFF、WOFF2 格式，檔案將在瀏覽器端處理
+                  </p>
+                </div>
+
+                <!-- 預設字體按鈕 -->
+                <div class="mt-4">
+                  <label
+                    id="presetFontsLabel"
+                    class="block text-sm font-medium text-gray-700 mb-3"
+                    data-i18n="presetFontsLabel"
+                  >
+                    🎯 預設字體
+                  </label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button
+                      id="loadCuteFont"
+                      class="preset-font-btn bg-pink-100 text-pink-800 rounded-md hover:bg-pink-200 transition-colors border border-pink-300"
+                      data-i18n="fontCute"
+                    >
+                      💖 可愛的
+                    </button>
+                    <button
+                      id="loadGameFont"
+                      class="preset-font-btn bg-orange-100 text-orange-800 rounded-md hover:bg-orange-200 transition-colors border border-orange-300"
+                      data-i18n="fontGame"
+                    >
+                      🎮 遊戲風
+                    </button>
+                    <button
+                      id="loadHackerFont"
+                      class="preset-font-btn bg-green-100 text-green-800 rounded-md hover:bg-green-200 transition-colors border border-green-300"
+                      data-i18n="fontHacker"
+                    >
+                      💻 駭客感
+                    </button>
+                    <button
+                      id="loadMagicFont"
+                      class="preset-font-btn bg-purple-100 text-purple-800 rounded-md hover:bg-purple-200 transition-colors border border-purple-300"
+                      data-i18n="fontMagic"
+                    >
+                      ✨ 魔法風
+                    </button>
+                    <button
+                      id="loadNotoFont"
+                      class="preset-font-btn bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 transition-colors border border-blue-300"
+                      data-i18n="fontNoto"
+                    >
+                      📝 工整的
+                    </button>
+                    <button
+                      id="loadMartialFont"
+                      class="preset-font-btn bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors border border-red-300"
+                      data-i18n="fontMartial"
+                    >
+                      ⚔️ 武俠感
+                    </button>
+                    <button
+                      id="loadWriteFont"
+                      class="preset-font-btn bg-yellow-100 text-yellow-800 rounded-md hover:bg-yellow-200 transition-colors border border-yellow-300"
+                      data-i18n="fontWrite"
+                    >
+                      ✍️ 日記感
+                    </button>
+                    <button
+                      id="loadMordanFont"
+                      class="preset-font-btn bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors border border-gray-300"
+                      data-i18n="fontModern"
+                    >
+                      🏢 現代感
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 字體載入狀態 -->
+              <div
+                id="fontStatus"
+                class="text-xs text-center py-2 border-t border-gray-100 hidden"
+              ></div>
+            </div>
+          </div>
+
+          <!-- 文字區 -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2
+              class="text-2xl font-semibold text-gray-800 mb-6 flex items-center"
+              data-i18n="textSettingsTitle"
+            >
+              ✏️ 文字設定
+            </h2>
+
+            <div class="space-y-6">
+              <!-- 輸入文字 -->
+              <div>
+                <label
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                  data-i18n="textInputLabel"
+                >
+                  📝 輸入文字
+                </label>
+                <textarea
+                  id="textInput"
+                  rows="3"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  placeholder="請輸入要轉換的文字&#10;支援多行文字"
+                  data-i18n-placeholder="textInputPlaceholder"
+                  data-i18n-value="textInputDefault"
+                >
+範例文字</textarea
+                >
+              </div>
+
+              <!-- 字體大小 -->
+              <div id="fontSizeSection">
+                <label
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                  data-i18n="fontSizeLabel"
+                >
+                  📏 字體大小:
+                  <span id="fontSizeDisplay" class="text-blue-600 font-semibold"
+                    >72</span
+                  >px
+                </label>
+                <input
+                  type="range"
+                  id="fontSizeSlider"
+                  value="72"
+                  min="12"
+                  max="300"
+                  class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                />
+                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                  <span>12px</span>
+                  <span>300px</span>
+                </div>
+              </div>
+
+              <!-- 文字顏色選擇 -->
+              <div>
+                <label
+                  class="block text-sm font-medium text-gray-700 mb-3"
+                  data-i18n="textColorLabel"
+                >
+                  🎨 文字顏色
+                </label>
+                <div class="grid grid-cols-12 gap-2">
+                  <label
+                    class="col-span-3 flex items-center cursor-pointer p-2 border rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="text_color"
+                      value="black"
+                      checked
+                      class="mr-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span class="text-gray-900 text-sm" data-i18n="colorBlack"
+                      >⚫ 黑色</span
+                    >
+                  </label>
+                  <label
+                    class="col-span-3 flex items-center cursor-pointer p-2 border rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="text_color"
+                      value="white"
+                      class="mr-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span class="text-gray-900 text-sm" data-i18n="colorWhite"
+                      >⚪ 白色</span
+                    >
+                  </label>
+                  <label
+                    class="col-span-6 flex items-center cursor-pointer p-2 border rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="text_color"
+                      value="custom"
+                      class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span
+                      class="text-gray-900 mr-2 text-sm"
+                      data-i18n="colorCustom"
+                      >🌈 自訂</span
+                    >
+                    <div class="flex items-center ml-auto">
+                      <input
+                        type="color"
+                        id="customColor"
+                        value="#ff0000"
+                        class="w-8 h-8 border-2 border-gray-300 rounded cursor-pointer hover:border-blue-400 transition-colors"
+                      />
+                      <svg
+                        class="w-4 h-4 ml-1 text-gray-500 cursor-pointer hover:text-blue-600 transition-colors"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        onclick="document.getElementById('customColor').click()"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        ></path>
+                      </svg>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 外框設定 -->
+              <div class="border rounded-lg p-3 bg-gray-50">
+                <label class="flex items-center cursor-pointer mb-2">
+                  <input
+                    type="checkbox"
+                    id="addOutline"
+                    class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span class="text-sm font-medium text-gray-700">
+                    <span data-i18n="outlineBoxLabel">🔲 文字外框</span>
+                    <span class="text-gray-500" data-i18n="outlineBoxHelp"
+                      >(智慧配色)</span
+                    >
+                  </span>
+                </label>
+
+                <div id="outlineOptions" class="hidden space-y-2">
+                  <div>
+                    <label
+                      class="block text-sm font-medium text-gray-700 mb-1"
+                      data-i18n="outlineWidthLabel"
+                    >
+                      外框寬度:
+                      <span id="outlineWidthDisplay" class="text-blue-600"
+                        >3</span
+                      >px
+                    </label>
+                    <input
+                      type="range"
+                      id="outlineWidthSlider"
+                      value="3"
+                      min="1"
+                      max="15"
+                      class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label
+                      class="flex items-center cursor-pointer py-1.5 px-2 border rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      <input
+                        type="radio"
+                        name="outline_color"
+                        value="auto"
+                        checked
+                        class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <span
+                        class="text-sm text-gray-700"
+                        data-i18n="outlineColorAuto"
+                        >🤖 智慧配色</span
+                      >
+                    </label>
+                    <label
+                      class="flex items-center cursor-pointer py-1.5 px-2 border rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      <input
+                        type="radio"
+                        name="outline_color"
+                        value="custom"
+                        class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <span
+                        class="text-sm text-gray-700 mr-2"
+                        data-i18n="outlineColorCustom"
+                        >🎨 自訂</span
+                      >
+                      <div class="flex items-center">
+                        <input
+                          type="color"
+                          id="customOutlineColor"
+                          value="#000000"
+                          class="w-6 h-6 border-2 border-gray-300 rounded cursor-pointer hover:border-blue-400 transition-colors"
+                        />
+                        <svg
+                          class="w-3 h-3 ml-1 text-gray-500 cursor-pointer hover:text-blue-600 transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          onclick="document.getElementById('customOutlineColor').click()"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                          ></path>
+                        </svg>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 預覽區域 -->
+        <div class="bg-white rounded-xl shadow-lg p-8">
+          <h2
+            class="text-2xl font-semibold text-gray-800 mb-6 flex items-center"
+            data-i18n="previewTitle"
+          >
+            👁️ 即時預覽
+          </h2>
+
+          <!-- 預覽背景選擇 -->
+          <div id="previewBackgroundControls" class="mb-4">
+            <label
+              id="previewBgLabel"
+              class="block text-sm font-medium text-gray-700 mb-2"
+              data-i18n="previewBgLabel"
+            >
+              🖼️ 預覽背景
+            </label>
+            <div class="flex justify-center gap-2">
+              <button
+                id="previewBgChecker"
+                class="preview-bg-button px-3 py-2 text-xs border-2 border-gray-300 rounded-md active"
+                style="
+                  background: repeating-conic-gradient(
+                      #ccc 0% 25%,
+                      white 0% 50%
+                    )
+                    50%/10px 10px;
+                "
+                title="透明背景（灰白相間）"
+                data-i18n-title="previewBgTransparentTitle"
+              >
+                <span
+                  class="text-gray-700 font-medium"
+                  data-i18n="previewBgTransparent"
+                  >透明</span
+                >
+              </button>
+              <button
+                id="previewBgBlack"
+                class="preview-bg-button px-3 py-2 text-xs border-2 border-gray-300 rounded-md bg-black"
+                title="黑色背景"
+                data-i18n-title="previewBgBlackTitle"
+              >
+                <span class="text-white font-medium" data-i18n="previewBgBlack"
+                  >黑色</span
+                >
+              </button>
+              <button
+                id="previewBgWhite"
+                class="preview-bg-button px-3 py-2 text-xs border-2 border-gray-300 rounded-md bg-white"
+                title="白色背景"
+                data-i18n-title="previewBgWhiteTitle"
+              >
+                <span
+                  class="text-gray-700 font-medium"
+                  data-i18n="previewBgWhite"
+                  >白色</span
+                >
+              </button>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <div
+              class="border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4 bg-gray-50 min-h-[300px] flex items-center justify-center"
+            >
+              <canvas
+                id="previewCanvas"
+                class="max-w-full h-auto mx-auto border rounded shadow-sm"
+                style="max-height: 500px; background: transparent"
+              ></canvas>
+            </div>
+
+            <!-- 輸出格式選項 -->
+            <div
+              id="outputFormatSection"
+              class="mb-4 bg-gray-50 rounded-lg p-3"
+            >
+              <label class="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="usePngOutput"
+                  class="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span class="text-sm font-medium text-gray-700">
+                  <span data-i18n="outputFormatLabel">🖼️ 使用 PNG 輸出</span>
+                  <span class="text-gray-500" data-i18n="outputFormatHelp"
+                    >(預設為SVG向量圖)</span
+                  >
+                </span>
+              </label>
+            </div>
+
+            <div class="space-y-3">
+              <button
+                id="downloadBtn"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center"
+              >
+                <svg
+                  class="w-5 h-5 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  ></path>
+                </svg>
+                <span id="downloadBtnText" data-i18n="downloadBtnSVG"
+                  >下載圖片 (SVG)</span
+                >
+              </button>
+
+              <button
+                id="copyBtn"
+                class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center justify-center"
+              >
+                <svg
+                  class="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  ></path>
+                </svg>
+                <span data-i18n="copyBtn">複製到剪貼簿</span>
+              </button>
+
+              <button
+                id="resetBtn"
+                class="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-md transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                data-i18n="resetBtn"
+              >
+                🔄 重設所有設定
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="imageInfo"
+            class="mt-4 text-sm text-gray-600 text-center hidden"
+          >
+            <div class="bg-blue-50 rounded-lg p-3">
+              <p>
+                <strong data-i18n="imageInfoTitle">圖片資訊</strong>
+              </p>
+              <p>
+                <span data-i18n="imageInfoDimensions">尺寸:</span>
+                <span id="imageDimensions" class="font-mono"></span>
+              </p>
+              <p>
+                <span data-i18n="imageInfoFileSize">檔案大小:</span>
+                <span id="fileSize"></span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JavaScript檔案 -->
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
