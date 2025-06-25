@@ -295,18 +295,6 @@ function setupEventListeners() {
     textInput.addEventListener("change", renderPreview);
   }
 
-  // 字體大小滑桿 - 使用 input 事件實現即時更新
-  const fontSizeSlider = document.getElementById("fontSizeSlider");
-  if (fontSizeSlider) {
-    fontSizeSlider.addEventListener("input", function () {
-      const fontSizeDisplay = document.getElementById("fontSizeDisplay");
-      if (fontSizeDisplay) {
-        fontSizeDisplay.textContent = this.value;
-      }
-      requestAnimationFrame(renderPreview);
-    });
-  }
-
   // 文字顏色選擇 - 所有顏色相關的變更都即時更新
   document.querySelectorAll('input[name="text_color"]').forEach((radio) => {
     radio.addEventListener("change", () =>
@@ -639,7 +627,6 @@ function updatePreviewBackground() {
 function renderPreview() {
   const textInput = document.getElementById("textInput");
   const text = textInput.value || textInput.placeholder;
-  const fontSize = parseInt(document.getElementById("fontSizeSlider").value);
   const textColor = getTextColor();
   const addOutline = document.getElementById("addOutline").checked;
   const outlineWidth = parseInt(
@@ -651,44 +638,65 @@ function renderPreview() {
 
   // 設定字體
   let fontFamily = currentFont || "Arial, sans-serif";
-  ctx.font = `${fontSize}px ${fontFamily}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  // 計算所有行的尺寸
-  let maxWidth = 0;
-  const lineMetrics = lines.map((line) => {
-    const metrics = ctx.measureText(line);
-    maxWidth = Math.max(maxWidth, metrics.width);
-    return metrics;
-  });
-
-  const lineHeight = fontSize * 1.4;
-  const totalHeight = lines.length * lineHeight;
 
   // 計算畫布尺寸
   const padding = 60;
   const extraSpace = addOutline ? outlineWidth * 2 : 0;
-  const canvasWidth = Math.max(400, maxWidth + padding + extraSpace);
-  const canvasHeight = Math.max(200, totalHeight + padding + extraSpace);
+  const canvasWidth = Math.max(400, canvas.width);
+  const canvasHeight = Math.max(200, canvas.height);
 
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // 重新設定字體
+  // 計算最佳字體大小
+  const maxWidth = canvasWidth - padding - extraSpace;
+  const maxHeight = canvasHeight - padding - extraSpace;
+  let fontSize = 72; // 起始字體大小
+
+  // 二分搜尋找出最佳字體大小
+  let minSize = 12;
+  let maxSize = 300;
+
+  while (minSize <= maxSize) {
+    fontSize = Math.floor((minSize + maxSize) / 2);
+    ctx.font = `${fontSize}px ${fontFamily}`;
+
+    // 計算當前字體大小下的文字尺寸
+    const lineHeight = fontSize * 1.4;
+    const totalHeight = lines.length * lineHeight;
+
+    let isTooBig = false;
+    let maxLineWidth = 0;
+
+    for (const line of lines) {
+      const metrics = ctx.measureText(line);
+      maxLineWidth = Math.max(maxLineWidth, metrics.width);
+
+      if (maxLineWidth > maxWidth || totalHeight > maxHeight) {
+        isTooBig = true;
+        break;
+      }
+    }
+
+    if (isTooBig) {
+      maxSize = fontSize - 1;
+    } else {
+      minSize = fontSize + 1;
+    }
+  }
+
+  fontSize = maxSize; // 使用找到的最佳大小
   ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
   // 清除畫布，確保透明背景
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // 確保畫布完全透明
   ctx.globalCompositeOperation = "source-over";
 
-  // 背景永遠保持透明
-
-  // 計算起始Y位置（置中）
+  // 計算行高和總高度
+  const lineHeight = fontSize * 1.4;
+  const totalHeight = lines.length * lineHeight;
   const startY = (canvas.height - totalHeight) / 2 + lineHeight / 2;
   const centerX = canvas.width / 2;
 
@@ -779,8 +787,6 @@ function resetSettings() {
     textInput.value = translations.textInputDefault;
     textInput.placeholder = translations.textInputPlaceholder;
 
-    document.getElementById("fontSizeSlider").value = "72";
-    document.getElementById("fontSizeDisplay").textContent = "72";
     document.querySelector(
       'input[name="text_color"][value="black"]'
     ).checked = true;
@@ -1048,7 +1054,6 @@ function updateUIVisibility(mode) {
     "pageHeader",
     "fontUploadGroup",
     "fontSectionToggle",
-    "fontSizeSection",
     "outputFormatSection",
     "copyBtn",
     "imageInfo",
