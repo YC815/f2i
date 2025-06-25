@@ -146,9 +146,10 @@
           <!-- 字體區 -->
           <div class="bg-white rounded-xl shadow-lg p-6">
             <h2
+              id="fontSettingsHeader"
               class="text-2xl font-semibold text-gray-800 mb-6 flex items-center justify-between"
             >
-              <div class="flex items-center gap-3">
+              <div id="fontSettingsHeaderInfo" class="flex items-center gap-3">
                 <span data-i18n="fontSettingsTitle">🎨 字體設定</span>
                 <span
                   id="currentFontDisplay"
@@ -304,6 +305,7 @@
           <!-- 文字區 -->
           <div class="bg-white rounded-xl shadow-lg p-6">
             <h2
+              id="textSettingsTitle"
               class="text-2xl font-semibold text-gray-800 mb-6 flex items-center"
               data-i18n="textSettingsTitle"
             >
@@ -339,7 +341,10 @@
                 >
                   🎨 文字顏色
                 </label>
-                <div class="grid grid-cols-12 gap-2">
+                <div
+                  id="textColorOptionsContainer"
+                  class="grid grid-cols-12 gap-2"
+                >
                   <label
                     class="col-span-3 flex items-center cursor-pointer p-2 border rounded-md hover:bg-gray-50 transition-colors"
                   >

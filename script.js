@@ -1209,13 +1209,14 @@ function updateUIVisibility(mode) {
   const elementsToToggle = [
     "pageHeader",
     "fontUploadGroup",
-    "fontSectionToggle",
     "outputFormatSection",
     "copyBtn",
     "imageInfo",
     "fontStatus",
     "presetFontsLabel",
     "previewBgLabel",
+    "fontSettingsHeader",
+    "textSettingsTitle",
   ];
 
   elementsToToggle.forEach((id) => {
@@ -1224,6 +1225,20 @@ function updateUIVisibility(mode) {
       el.classList.toggle("hidden", isBabyMode);
     }
   });
+
+  // 處理文字顏色選項佈局
+  const textColorOptionsContainer = document.getElementById(
+    "textColorOptionsContainer"
+  );
+  if (textColorOptionsContainer) {
+    if (isBabyMode) {
+      textColorOptionsContainer.classList.remove("grid", "grid-cols-12");
+      textColorOptionsContainer.classList.add("flex", "flex-col", "gap-3");
+    } else {
+      textColorOptionsContainer.classList.add("grid", "grid-cols-12");
+      textColorOptionsContainer.classList.remove("flex", "flex-col", "gap-3");
+    }
+  }
 
   // 確保所有字體按鈕都顯示（無論任何模式）
   const fontButtons = [
