@@ -8,6 +8,7 @@ let currentMode = "engineer"; // 追蹤當前模式：engineer 或 baby
 let currentLanguage = "zh"; // 追蹤當前語言：zh 或 en
 let activeToasts = []; // 追蹤當前活躍的 toast 訊息
 let translations = {}; // 存放當前語言的翻譯
+let currentFontInfo = null; // 追蹤當前載入的字體信息：{ type: 'preset'|'custom', key: string, name: string }
 
 // 設定預設畫布大小
 canvas.width = 400;
@@ -63,6 +64,36 @@ function updateCurrentFontDisplay(text, i18nKey = null) {
     displayEl.dataset.i18nKey = i18nKey;
   } else {
     displayEl.removeAttribute("data-i18n-key");
+  }
+}
+
+// 更新字體狀態訊息（語言切換時使用）
+function updateFontStatusMessage() {
+  const statusEl = document.getElementById("fontStatus");
+  if (!currentFontInfo || statusEl.classList.contains("hidden")) {
+    return; // 沒有載入字體或狀態訊息已隱藏
+  }
+
+  // 檢查狀態訊息是否為成功狀態（綠色）
+  if (!statusEl.classList.contains("text-green-600")) {
+    return; // 不是成功狀態，不更新
+  }
+
+  if (currentFontInfo.type === "preset") {
+    // 預設字體：使用翻譯後的名稱
+    const fontDisplayName =
+      translations[currentFontInfo.key] || currentFontInfo.key;
+    statusEl.textContent =
+      translations.fontPresetLoadSuccess?.replace(
+        "{fontName}",
+        fontDisplayName
+      ) || `${fontDisplayName} 載入成功！`;
+  } else if (currentFontInfo.type === "custom") {
+    // 自訂字體：使用原始檔案名稱
+    statusEl.textContent = translations.fontLoadSuccess.replace(
+      "{fileName}",
+      currentFontInfo.fullName || currentFontInfo.name
+    );
   }
 }
 
@@ -524,6 +555,15 @@ async function handleFontUpload(event) {
     currentFont = fontName;
     currentFontBuffer = arrayBuffer;
 
+    // 記錄當前字體信息
+    const fileName = file.name.replace(/\.[^/.]+$/, "");
+    currentFontInfo = {
+      type: "custom",
+      key: null,
+      name: fileName,
+      fullName: file.name, // 保存完整檔案名稱
+    };
+
     statusEl.className = "text-xs text-green-600";
     statusEl.textContent = translations.fontLoadSuccess.replace(
       "{fileName}",
@@ -531,7 +571,6 @@ async function handleFontUpload(event) {
     );
 
     document.getElementById("fileNameDisplay").textContent = file.name;
-    const fileName = file.name.replace(/\.[^/.]+$/, "");
     updateCurrentFontDisplay(fileName);
     renderPreview();
   } catch (error) {
@@ -544,12 +583,13 @@ async function handleFontUpload(event) {
 
 // 載入預設字體函數
 async function loadPresetFont(fontPath, fontKey, event = null) {
-  const fontName = translations[fontKey] || fontKey;
+  // 獲取字體的顯示名稱（從 i18n 翻譯中取得）
+  const fontDisplayName = translations[fontKey] || fontKey;
   const statusEl = document.getElementById("fontStatus");
   statusEl.className = "text-xs text-blue-600";
   statusEl.textContent =
-    translations.fontPresetLoading?.replace("{fontName}", fontName) ||
-    `正在載入字體：${fontName}...`;
+    translations.fontPresetLoading?.replace("{fontName}", fontDisplayName) ||
+    `正在載入字體：${fontDisplayName}...`;
   statusEl.classList.remove("hidden");
 
   document.querySelectorAll(".preset-font-btn").forEach((btn) => {
@@ -589,12 +629,23 @@ async function loadPresetFont(fontPath, fontKey, event = null) {
       }
     }
 
+    // 記錄當前字體信息
+    currentFontInfo = {
+      type: "preset",
+      key: fontKey,
+      name: fontDisplayName,
+    };
+
+    // 載入成功訊息：預設字體使用翻譯後的字體名稱
     statusEl.className = "text-xs text-green-600";
     statusEl.textContent =
-      translations.fontPresetLoadSuccess?.replace("{fontName}", fontName) ||
-      `${fontName} 載入成功！`;
+      translations.fontPresetLoadSuccess?.replace(
+        "{fontName}",
+        fontDisplayName
+      ) || `${fontDisplayName} 載入成功！`;
 
-    updateCurrentFontDisplay(fontName, fontKey);
+    // 更新當前字體顯示：預設字體使用翻譯後的名稱和對應的 i18n key
+    updateCurrentFontDisplay(fontDisplayName, fontKey);
     document.getElementById("fontFile").value = "";
 
     return true;
@@ -603,14 +654,16 @@ async function loadPresetFont(fontPath, fontKey, event = null) {
     statusEl.className = "text-xs text-red-600";
     statusEl.textContent =
       translations.fontPresetLoadFail
-        ?.replace("{fontName}", fontName)
+        ?.replace("{fontName}", fontDisplayName)
         ?.replace("{errorMessage}", error.message) ||
-      `${fontName} 載入失敗：${error.message}`;
+      `${fontDisplayName} 載入失敗：${error.message}`;
 
     if (event) {
       showMessage(
-        translations.fontLoadFailHint2?.replace("{fontName}", fontName) ||
-          `${fontName} 載入失敗，請檢查網路連線`,
+        translations.fontLoadFailHint2?.replace(
+          "{fontName}",
+          fontDisplayName
+        ) || `${fontDisplayName} 載入失敗，請檢查網路連線`,
         "error"
       );
 
@@ -906,6 +959,7 @@ function resetSettings() {
     // 重設為系統預設字體
     currentFont = null;
     currentFontBuffer = null;
+    currentFontInfo = null; // 清除字體信息
 
     currentPreviewBg = "checker";
     setPreviewBackground("checker");
@@ -1124,6 +1178,9 @@ async function updateUILanguage(language) {
     fontDisplay.textContent = translations[fontKey];
   }
 
+  // - Font status message (載入成功訊息)
+  updateFontStatusMessage();
+
   // Update initial text value only if it's still the default
   const textInput = document.getElementById("textInput");
   const defaultZh = "範例文字";
@@ -1168,24 +1225,22 @@ function updateUIVisibility(mode) {
     }
   });
 
-  // 處理預設字體按鈕的顯示/隱藏
+  // 確保所有字體按鈕都顯示（無論任何模式）
   const fontButtons = [
-    "loadCuteFont", // 顯示
-    "loadGameFont", // 顯示
-    "loadHackerFont", // 顯示
-    "loadMagicFont", // 顯示
-    "loadNotoFont", // 隱藏
-    "loadMartialFont", // 隱藏
-    "loadWriteFont", // 隱藏
-    "loadMordanFont", // 隱藏
+    "loadCuteFont",
+    "loadGameFont",
+    "loadHackerFont",
+    "loadMagicFont",
+    "loadNotoFont",
+    "loadMartialFont",
+    "loadWriteFont",
+    "loadMordanFont",
   ];
 
-  fontButtons.forEach((buttonId, index) => {
+  fontButtons.forEach((buttonId) => {
     const button = document.getElementById(buttonId);
     if (button) {
-      // 在嬰兒模式下，只顯示前4個按鈕（index 0-3）
-      const shouldHide = isBabyMode && index >= 4;
-      button.classList.toggle("hidden", shouldHide);
+      button.classList.remove("hidden");
     }
   });
 
@@ -1194,8 +1249,15 @@ function updateUIVisibility(mode) {
   if (isBabyMode) {
     // 嬰兒模式下，強制展開且不可收合
     fontSectionContent.style.maxHeight = fontSectionContent.scrollHeight + "px";
+  } else {
+    // 工程師模式下，如果 fontSectionContent 有設定 maxHeight（表示之前在嬰兒模式），
+    // 則重新計算並設定 maxHeight，確保所有內容可見。
+    // 這解決了從嬰兒模式切換回來時，因 scrollHeight 改變而導致內容被截斷的問題。
+    if (fontSectionContent.style.maxHeight) {
+      fontSectionContent.style.maxHeight =
+        fontSectionContent.scrollHeight + "px";
+    }
   }
-  // 工程師模式則恢復正常，由 toggleFontSection 函式控制
 }
 
 // 工具函數：根據模式更新UI（預留給未來擴展）
