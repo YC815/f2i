@@ -192,6 +192,26 @@
   .grid-cols-1.lg\\:grid-cols-2 {
     grid-template-columns: 1fr;
   }
+
+  /* Scratch Import Guide 按鈕在窄螢幕時的樣式 */
+  #scratchHelpBtn {
+    width: 2.5rem !important;
+    padding: 0 !important;
+  }
+
+  #scratchHelpBtn span {
+    font-size: 1.25rem;
+    visibility: hidden;
+  }
+
+  #scratchHelpBtn span::after {
+    content: "🐱";
+    visibility: visible;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* 浮動按鈕樣式 */
