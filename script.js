@@ -182,6 +182,50 @@ async function preloadButtonFonts() {
 }
 
 function setupEventListeners() {
+  // Scratch 教學按鈕事件
+  const scratchHelpBtn = document.getElementById("scratchHelpBtn");
+  const scratchHelpModal = document.getElementById("scratchHelpModal");
+  const closeScratchHelp = document.getElementById("closeScratchHelp");
+
+  if (scratchHelpBtn && scratchHelpModal && closeScratchHelp) {
+    scratchHelpBtn.addEventListener("click", async () => {
+      scratchHelpModal.classList.remove("hidden");
+      document.body.style.overflow = "hidden"; // 防止背景滾動
+
+      try {
+        // 根據當前語言選擇 Markdown 文件
+        const markdownFile =
+          currentLanguage === "en"
+            ? "public/scratch_import_en.md"
+            : "public/scratch_import.md";
+
+        const response = await fetch(markdownFile);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const markdown = await response.text();
+        const html = convertMarkdownToHTML(markdown);
+        document.getElementById("scratchHelpContent").innerHTML = html;
+      } catch (error) {
+        console.error("載入 Markdown 失敗:", error);
+        showMessage(translations.scratchHelpLoadFail, "error");
+      }
+    });
+
+    closeScratchHelp.addEventListener("click", () => {
+      scratchHelpModal.classList.add("hidden");
+      document.body.style.overflow = ""; // 恢復背景滾動
+    });
+
+    // 點擊背景關閉
+    scratchHelpModal.addEventListener("click", (e) => {
+      if (e.target === scratchHelpModal) {
+        scratchHelpModal.classList.add("hidden");
+        document.body.style.overflow = "";
+      }
+    });
+  }
+
   // 字體區域收起/展開按鈕
   const fontSectionToggle = document.getElementById("fontSectionToggle");
   if (fontSectionToggle) {
@@ -1034,4 +1078,33 @@ function updateUIMode(mode) {
   // 這個函數可以用來根據模式調整UI樣式
   // 例如在嬰兒模式下使用更柔和的顏色
   console.log(`UI模式已切換到：${mode}`);
+}
+
+// Markdown 轉換函數
+function convertMarkdownToHTML(markdown) {
+  // 簡單的 Markdown 轉換規則
+  return markdown
+    .replace(
+      /^### (.*$)/gm,
+      '<h3 class="text-xl font-semibold text-gray-800 mt-6 mb-3">$1</h3>'
+    )
+    .replace(
+      /^## (.*$)/gm,
+      '<h2 class="text-2xl font-bold text-gray-900 mb-4">$1</h2>'
+    )
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+    .replace(/\n\n/g, '</p><p class="mb-4">')
+    .replace(
+      /!\[(.*?)\]\((.*?)\)/g,
+      '<img src="$2" alt="$1" class="rounded-lg shadow-md my-4 max-w-full">'
+    )
+    .replace(
+      /^- (.*$)/gm,
+      '<li class="flex items-center gap-2 mb-2"><span class="text-purple-500">•</span>$1</li>'
+    )
+    .replace(/---/g, '<hr class="my-6 border-t border-gray-200">')
+    .replace(/📌|🖼️|💡/g, '<span class="text-xl mr-2">$&</span>')
+    .replace(/<li>/g, '<ul class="list-none pl-4 my-4">$&')
+    .replace(/(<\/li>\n(?!<li>)|<\/li>$)/g, "$&</ul>")
+    .replace(/^(?!<[uh]|<img|<hr|<ul|<\/ul>)(.+)$/gm, '<p class="mb-4">$1</p>');
 }

@@ -87,5 +87,8 @@
     "switchToBabyMode": "Switched to Baby Mode 👶",
     "switchToEngineerMode": "Switched to Engineer Mode 👨‍💻",
     "langSwitchedToEN": "Language switched to English.",
-    "langSwitchedToZH": "語言已切換為中文。"
+    "langSwitchedToZH": "語言已切換為中文。",
+    "scratchHelpTitle": "Scratch Import Guide",
+    "scratchHelpBtn": "🎨 Scratch Import Guide",
+    "scratchHelpLoadFail": "Failed to load tutorial content, please try again later"
 }

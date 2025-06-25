@@ -87,5 +87,8 @@
     "switchToBabyMode": "已切換到寶寶模式 👶",
     "switchToEngineerMode": "已切換到工程師模式 👨‍💻",
     "langSwitchedToEN": "Language switched to English.",
-    "langSwitchedToZH": "語言已切換為中文。"
+    "langSwitchedToZH": "語言已切換為中文。",
+    "scratchHelpTitle": "Scratch 匯入教學",
+    "scratchHelpBtn": "🎨 Scratch 匯入教學",
+    "scratchHelpLoadFail": "載入教學內容失敗，請稍後再試"
 }

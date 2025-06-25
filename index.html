@@ -58,6 +58,18 @@
   <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-8">
     <!-- 浮動按鈕組 -->
     <div class="fixed top-6 right-6 z-50 flex gap-3">
+      <!-- Scratch 匯入教學按鈕 -->
+      <button
+        id="scratchHelpBtn"
+        class="floating-btn bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center border-2 border-gray-200 hover:border-purple-300 px-4 h-12 animate-float"
+        title="Scratch 匯入教學"
+        data-i18n-title="scratchHelpTitle"
+      >
+        <span class="text-purple-600 font-medium" data-i18n="scratchHelpBtn"
+          >🎨 Scratch 匯入教學</span
+        >
+      </button>
+
       <!-- 模式切換按鈕 (工程師/嬰兒) -->
       <button
         id="modeToggleBtn"
@@ -663,6 +675,43 @@
               </p>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scratch 匯入教學彈出視窗 -->
+    <div
+      id="scratchHelpModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 relative"
+      >
+        <!-- 關閉按鈕 -->
+        <button
+          id="closeScratchHelp"
+          class="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          title="關閉"
+          data-i18n-title="closeBtn"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+
+        <!-- 內容區域 -->
+        <div class="p-8 overflow-y-auto max-h-[80vh]" id="scratchHelpContent">
+          <!-- Markdown 內容將透過 JavaScript 動態載入 -->
         </div>
       </div>
     </div>
