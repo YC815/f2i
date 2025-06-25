@@ -61,23 +61,43 @@ function toggleFontSection() {
 // 預載入按鈕字體
 async function preloadButtonFonts() {
   const fontConfigs = [
-    { path: "/fonts/cute.ttf", name: "CuteFont", buttonId: "loadCuteFont" },
-    { path: "/fonts/game.ttf", name: "GameFont", buttonId: "loadGameFont" },
     {
-      path: "/fonts/hacker.otf",
+      path: "public/fonts/cute.ttf",
+      name: "CuteFont",
+      buttonId: "loadCuteFont",
+    },
+    {
+      path: "public/fonts/game.ttf",
+      name: "GameFont",
+      buttonId: "loadGameFont",
+    },
+    {
+      path: "public/fonts/hacker.otf",
       name: "HackerFont",
       buttonId: "loadHackerFont",
     },
-    { path: "/fonts/magic.ttf", name: "MagicFont", buttonId: "loadMagicFont" },
-    { path: "/fonts/noto.ttf", name: "NotoFont", buttonId: "loadNotoFont" },
     {
-      path: "/fonts/martial.otf",
+      path: "public/fonts/magic.ttf",
+      name: "MagicFont",
+      buttonId: "loadMagicFont",
+    },
+    {
+      path: "public/fonts/noto.ttf",
+      name: "NotoFont",
+      buttonId: "loadNotoFont",
+    },
+    {
+      path: "public/fonts/martial.otf",
       name: "MartialFont",
       buttonId: "loadMartialFont",
     },
-    { path: "/fonts/write.ttf", name: "WriteFont", buttonId: "loadWriteFont" },
     {
-      path: "/fonts/mordan.otf",
+      path: "public/fonts/write.ttf",
+      name: "WriteFont",
+      buttonId: "loadWriteFont",
+    },
+    {
+      path: "public/fonts/mordan.otf",
       name: "MordanFont",
       buttonId: "loadMordanFont",
     },
@@ -324,7 +344,9 @@ async function loadPresetFont(fontPath, fontKey, event) {
 
   try {
     // 嘗試載入字體檔案
-    const response = await fetch(fontPath);
+    const response = await fetch(
+      fontPath.startsWith("public/") ? fontPath : "public" + fontPath
+    );
     if (!response.ok) {
       throw new Error(
         `無法載入字體檔案: ${response.status} - ${response.statusText}`
@@ -958,7 +980,7 @@ async function toggleLanguage() {
 // 載入翻譯檔案
 async function loadTranslations(lang) {
   try {
-    const response = await fetch(`/locales/${lang}.json`);
+    const response = await fetch(`public/locales/${lang}.json`);
     if (!response.ok) {
       throw new Error(`Could not load ${lang}.json`);
     }
