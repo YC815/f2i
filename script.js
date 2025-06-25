@@ -250,7 +250,7 @@ function enableFontButton(buttonId) {
 
 // 漸進式字體載入
 async function startProgressiveFontLoading() {
-  console.log("🔄 開始漸進式載入字體...");
+  console.log("🔄 開始並行載入所有字體...");
 
   // 如果是透過檔案系統開啟（file://），提供建議
   if (location.protocol === "file:") {
@@ -262,10 +262,8 @@ async function startProgressiveFontLoading() {
     );
   }
 
-  // 按順序載入字體
-  for (let i = 0; i < fontConfigs.length; i++) {
-    const config = fontConfigs[i];
-
+  // 建立一個載入單一字體的非同步函式
+  const loadFont = async (config) => {
     try {
       console.log(`🔄 開始載入字體: ${config.displayName}`);
 
@@ -285,34 +283,49 @@ async function startProgressiveFontLoading() {
         button.style.fontFamily = config.name;
       }
 
-      // 啟用按鈕（骨架狀態會自動移除）
+      // 啟用按鈕
       enableFontButton(config.buttonId);
-
       console.log(`✅ ${config.displayName} 字體載入成功`);
-
-      // 如果是第一個字體（可愛字體），自動套用
-      if (i === 0) {
-        try {
-          await loadPresetFont(config.path, config.presetKey);
-          renderPreview();
-          console.log(`🎯 已自動套用第一個字體: ${config.displayName}`);
-        } catch (error) {
-          console.warn(`⚠️ 自動套用第一個字體失敗:`, error);
-        }
-      }
-
-      // 在每個字體載入完成後稍作延遲，避免阻塞主線程
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      return { success: true, config: config }; // 回傳成功狀態與設定
     } catch (error) {
       console.warn(`⚠️ ${config.displayName} 字體載入失敗:`, error.message);
       fontLoadingStatus.set(config.buttonId, "failed");
-
       // 即使載入失敗也啟用按鈕，讓用戶可以重試
       enableFontButton(config.buttonId);
+      return { success: false, config: config }; // 回傳失敗狀態
     }
+  };
+
+  // 將所有字體載入任務轉換為 Promise 陣列，並行啟動
+  const fontLoadingPromises = fontConfigs.map(loadFont);
+
+  // 特別處理第一個字體的載入，以便自動套用
+  if (fontLoadingPromises.length > 0) {
+    fontLoadingPromises[0]
+      .then((result) => {
+        if (result.success) {
+          // 當第一個字體成功載入後，立即套用它
+          console.log(
+            `🎯 第一個字體 (${result.config.displayName}) 已載入，嘗試自動套用...`
+          );
+          return loadPresetFont(result.config.path, result.config.presetKey);
+        }
+      })
+      .then((applied) => {
+        if (applied) {
+          renderPreview();
+          console.log(`🎨 已自動套用第一個預設字體。`);
+        }
+      })
+      .catch((error) => {
+        console.warn(`⚠️ 自動套用第一個字體時發生錯誤:`, error);
+      });
   }
 
-  console.log("🎉 字體載入流程完成");
+  // 等待所有字體載入任務完成（無論成功或失敗）
+  await Promise.all(fontLoadingPromises);
+
+  console.log("🎉 所有字體載入流程完成");
 }
 
 function setupEventListeners() {
