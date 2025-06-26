@@ -91,5 +91,6 @@
     "scratchHelpTitle": "Scratch 匯入技巧",
     "scratchHelpBtn": "🎨 Scratch 匯入技巧",
     "scratchHelpLoadFail": "載入教學內容失敗，請稍後再試",
-    "fontButtonDisabled": "字體正在載入中，請稍候"
+    "fontButtonDisabled": "字體正在載入中，請稍候",
+    "presetFontsHelp": "首次載入需等待20~25秒"
 }

@@ -10,7 +10,7 @@
     "fontFileLabel": "📎 Font File",
     "chooseFile": "Choose File",
     "noFileChosen": "No file chosen",
-    "fontFileHelp": "Supports TTF, OTF, WOFF, WOFF2. Files are processed in your browser.",
+    "fontFileHelp": "Supports TTF, OTF, WOFF, WOFF2",
     "presetFontsLabel": "🎯 Preset Fonts",
     "fontCute": "💖 Cute",
     "fontGame": "🎮 Game",
@@ -91,5 +91,6 @@
     "scratchHelpTitle": "Scratch Import Tips",
     "scratchHelpBtn": "🎨 Scratch Import Tips",
     "scratchHelpLoadFail": "Failed to load tutorial content, please try again later",
-    "fontButtonDisabled": "Font is loading, please wait"
+    "fontButtonDisabled": "Font is loading, please wait",
+    "presetFontsHelp": "First load may take 20~25 seconds"
 }
