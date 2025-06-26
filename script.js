@@ -1,6 +1,7 @@
 // 全域變數
 let currentFont = null;
 let currentFontBuffer = null; // 新增：儲存字體 ArrayBuffer
+let db; // 全域的 IndexedDB 連線實例
 let canvas = document.getElementById("previewCanvas");
 let ctx = canvas.getContext("2d");
 let currentPreviewBg = "checker"; // 預設為灰白相間
@@ -10,11 +11,99 @@ let activeToasts = []; // 追蹤當前活躍的 toast 訊息
 let translations = {}; // 存放當前語言的翻譯
 let currentFontInfo = null; // 追蹤當前載入的字體信息：{ type: 'preset'|'custom', key: string, name: string }
 
+// ** IndexedDB Caching for Fonts **
+const DB_NAME = "font_cache_db";
+const DB_VERSION = 1;
+const FONT_STORE_NAME = "fonts";
+
 // ** 本地儲存功能 **
 const STORAGE_KEYS = {
   MODE: "f2i_current_mode",
   LANGUAGE: "f2i_current_language",
 };
+
+// 初始化 IndexedDB
+function initDB() {
+  return new Promise((resolve, reject) => {
+    // 如果 db 實例已存在，直接返回
+    if (db) {
+      return resolve(db);
+    }
+
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const dbInstance = event.target.result;
+      if (!dbInstance.objectStoreNames.contains(FONT_STORE_NAME)) {
+        dbInstance.createObjectStore(FONT_STORE_NAME);
+        console.log(`🗄️ IndexedDB object store "${FONT_STORE_NAME}" created.`);
+      }
+    };
+
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      console.log("🗄️ IndexedDB connection successful.");
+      resolve(db);
+    };
+
+    request.onerror = (event) => {
+      console.error(" IndexedDB error:", event.target.errorCode);
+      reject(event.target.error);
+    };
+  });
+}
+
+// 從 IndexedDB 取得字體
+function getFontFromDB(key) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      console.warn("⚠️ DB not initialized, cannot get font.");
+      return resolve(null);
+    }
+    const transaction = db.transaction([FONT_STORE_NAME], "readonly");
+    const store = transaction.objectStore(FONT_STORE_NAME);
+    const request = store.get(key);
+
+    request.onsuccess = (event) => {
+      if (event.target.result) {
+        console.log(`📦 Font "${key}" retrieved from IndexedDB.`);
+        resolve(event.target.result);
+      } else {
+        console.log(`❓ Font "${key}" not found in IndexedDB.`);
+        resolve(null);
+      }
+    };
+
+    request.onerror = (event) => {
+      console.error("Error getting font from DB:", event.target.error);
+      reject(event.target.error);
+    };
+  });
+}
+
+// 將字體存入 IndexedDB
+function saveFontToDB(key, arrayBuffer) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      console.warn("⚠️ DB not initialized, cannot save font.");
+      return reject(new Error("Database not initialized."));
+    }
+    const transaction = db.transaction([FONT_STORE_NAME], "readwrite");
+    const store = transaction.objectStore(FONT_STORE_NAME);
+    // 使用 slice() 複製 ArrayBuffer，因為它可能會被轉移
+    const request = store.put(arrayBuffer.slice(0), key);
+
+    request.onsuccess = () => {
+      console.log(`💾 Font "${key}" saved to IndexedDB.`);
+      resolve();
+    };
+
+    request.onerror = (event) => {
+      console.error("Error saving font to DB:", event.target.error);
+      reject(event.target.error);
+    };
+  });
+}
 
 // 從本地儲存載入設定
 function loadSettingsFromStorage() {
@@ -98,36 +187,39 @@ ctx.globalAlpha = 1.0;
 document.addEventListener("DOMContentLoaded", async function () {
   try {
     // 1. 從本地儲存載入使用者設定
+    await initDB();
+
+    // 2. 從本地儲存載入使用者設定
     loadSettingsFromStorage();
 
-    // 2. 載入對應語系的翻譯
+    // 3. 載入對應語系的翻譯
     await loadTranslations(currentLanguage);
 
-    // 3. 設定預設文字（但先不要渲染）
+    // 4. 設定預設文字（但先不要渲染）
     const textInput = document.getElementById("textInput");
     textInput.value = translations.textInputDefault || "範例文字";
 
-    // 4. 設定預設背景
+    // 5. 設定預設背景
     setPreviewBackground("checker");
 
-    // 5. 初始化其他設定
+    // 6. 初始化其他設定
     setupEventListeners();
     updateDownloadButtonText();
 
-    // 6. 更新UI語言和可見性（使用載入的設定）
+    // 7. 更新UI語言和可見性（使用載入的設定）
     updateUILanguage(currentLanguage);
     updateUIVisibility(currentMode);
 
-    // 7. 初始化浮動按鈕狀態（根據載入的設定）
+    // 8. 初始化浮動按鈕狀態（根據載入的設定）
     initializeFloatingButtons();
 
-    // 8. 初始化字體按鈕為禁用狀態
+    // 9. 初始化字體按鈕為禁用狀態
     initializeFontButtons();
 
-    // 9. 渲染初始預覽（使用系統字體）
+    // 10. 渲染初始預覽（使用系統字體）
     renderPreview();
 
-    // 10. 開始背景載入字體（不阻塞主線程）
+    // 11. 開始背景載入字體（不阻塞主線程）
     startProgressiveFontLoading();
   } catch (error) {
     console.error("初始化失敗:", error);
@@ -350,12 +442,20 @@ async function startProgressiveFontLoading() {
     try {
       console.log(`🔄 開始載入字體: ${config.displayName}`);
 
-      const response = await fetch(config.path);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // 1. 檢查 IndexedDB
+      let arrayBuffer = await getFontFromDB(config.path);
+
+      if (!arrayBuffer) {
+        console.log(`🌍 ${config.displayName} 不在快取中，從網路下載...`);
+        const response = await fetch(config.path);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        arrayBuffer = await response.arrayBuffer();
+        // 存入 IndexedDB
+        await saveFontToDB(config.path, arrayBuffer);
       }
 
-      const arrayBuffer = await response.arrayBuffer();
       const fontFace = new FontFace(config.name, arrayBuffer);
       await fontFace.load();
       document.fonts.add(fontFace);
@@ -713,16 +813,26 @@ async function loadPresetFont(fontPath, fontKey, event = null) {
   });
 
   try {
-    const response = await fetch(
-      fontPath.startsWith("public/") ? fontPath : "public" + fontPath
-    );
-    if (!response.ok) {
-      throw new Error(
-        `無法載入字體檔案: ${response.status} - ${response.statusText}`
-      );
+    const path = fontPath.startsWith("public/")
+      ? fontPath
+      : "public" + fontPath;
+
+    // 1. 檢查 IndexedDB
+    let arrayBuffer = await getFontFromDB(path);
+
+    if (!arrayBuffer) {
+      console.log(`🌍 ${fontDisplayName} 不在快取中，從網路下載...`);
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error(
+          `無法載入字體檔案: ${response.status} - ${response.statusText}`
+        );
+      }
+      arrayBuffer = await response.arrayBuffer();
+      // 存入 IndexedDB
+      await saveFontToDB(path, arrayBuffer);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
     const uniqueFontName =
       "PresetFont_" + Math.random().toString(36).substr(2, 9);
     const fontFace = new FontFace(uniqueFontName, arrayBuffer);
