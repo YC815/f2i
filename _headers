@@ -1,0 +1,17 @@
+# 字體：快取一年，不再重新驗證（最適合 .woff2）
+/public/fonts/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
+# 圖片：快取一週，可依需求延長
+/public/images/*
+  Cache-Control: public, max-age=604800, immutable
+
+# 其他檔案：不快取或快取很短，確保更新能即時生效
+/*.html
+  Cache-Control: no-cache
+
+/*.js
+  Cache-Control: no-cache
+
+/*.css
+  Cache-Control: no-cache
