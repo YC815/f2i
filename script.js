@@ -541,6 +541,24 @@ function setupEventListeners() {
   if (languageToggleBtn) {
     languageToggleBtn.addEventListener("click", toggleLanguage);
   }
+
+  // 除錯面板事件
+  const showDebugPanel = document.getElementById("showDebugPanel");
+  const debugPanel = document.getElementById("debugPanel");
+  const toggleDebugPanel = document.getElementById("toggleDebugPanel");
+
+  if (showDebugPanel && debugPanel && toggleDebugPanel) {
+    showDebugPanel.addEventListener("click", () => {
+      debugPanel.classList.remove("hidden");
+      showDebugPanel.classList.add("hidden");
+      updateDebugInfo();
+    });
+
+    toggleDebugPanel.addEventListener("click", () => {
+      debugPanel.classList.add("hidden");
+      showDebugPanel.classList.remove("hidden");
+    });
+  }
 }
 
 async function handleFontUpload(event) {
@@ -586,11 +604,13 @@ async function handleFontUpload(event) {
     document.getElementById("fileNameDisplay").textContent = file.name;
     updateCurrentFontDisplay(fileName);
     renderPreview();
+    updateDebugInfo(); // 更新除錯信息
   } catch (error) {
     console.error("字體載入失敗:", error);
     statusEl.className = "text-xs text-red-600";
     statusEl.textContent = translations.fontLoadFail;
     showMessage(translations.fontLoadFail, "error");
+    updateDebugInfo(); // 即使失敗也更新除錯信息
   }
 }
 
@@ -660,6 +680,7 @@ async function loadPresetFont(fontPath, fontKey, event = null) {
     // 更新當前字體顯示：預設字體使用翻譯後的名稱和對應的 i18n key
     updateCurrentFontDisplay(fontDisplayName, fontKey);
     document.getElementById("fontFile").value = "";
+    updateDebugInfo(); // 更新除錯信息
 
     return true;
   } catch (error) {
@@ -688,6 +709,7 @@ async function loadPresetFont(fontPath, fontKey, event = null) {
       }, 3000);
     }
 
+    updateDebugInfo(); // 即使失敗也更新除錯信息
     return false;
   }
 }
@@ -1075,6 +1097,13 @@ function repositionToasts() {
 
 // 模式切換功能
 function toggleMode() {
+  // 保存當前字體狀態，避免在模式切換時丟失
+  const previousFontState = {
+    currentFont: currentFont,
+    currentFontBuffer: currentFontBuffer,
+    currentFontInfo: currentFontInfo ? { ...currentFontInfo } : null,
+  };
+
   currentMode = currentMode === "engineer" ? "baby" : "engineer";
 
   const engineerIcon = document.getElementById("engineerIcon");
@@ -1087,15 +1116,56 @@ function toggleMode() {
     modeToggleBtn.classList.remove("hover:border-blue-300");
     modeToggleBtn.classList.add("hover:border-pink-300");
     modeToggleBtn.title = translations.modeToggleTitleCustom;
+    showMessage(
+      translations.switchToBabyMode || "已切換到寶寶模式 👶",
+      "success"
+    );
   } else {
     babyIcon.classList.add("hidden");
     engineerIcon.classList.remove("hidden");
     modeToggleBtn.classList.remove("hover:border-pink-300");
     modeToggleBtn.classList.add("hover:border-blue-300");
     modeToggleBtn.title = translations.modeToggleTitle;
+    showMessage(
+      translations.switchToEngineerMode || "已切換到工程師模式 👨‍💻",
+      "success"
+    );
   }
 
   updateUIVisibility(currentMode);
+
+  // 確保字體狀態完全保持不變
+  currentFont = previousFontState.currentFont;
+  currentFontBuffer = previousFontState.currentFontBuffer;
+  currentFontInfo = previousFontState.currentFontInfo;
+
+  // 保持字體按鈕的選中狀態
+  if (currentFontInfo && currentFontInfo.type === "preset") {
+    const activeButton = document.querySelector(
+      ".preset-font-btn.ring-2.ring-blue-500"
+    );
+    if (!activeButton) {
+      // 重新標記當前選中的字體按鈕
+      const currentConfig = fontConfigs.find(
+        (config) => config.presetKey === currentFontInfo.key
+      );
+      if (currentConfig) {
+        const button = document.getElementById(currentConfig.buttonId);
+        if (button) {
+          button.classList.add("ring-2", "ring-blue-500");
+        }
+      }
+    }
+  }
+
+  // 在模式切換後重新渲染預覽，確保字體正確顯示
+  setTimeout(() => {
+    renderPreview();
+    updateDebugInfo(); // 更新除錯信息
+    console.log(
+      `✅ 模式切換完成，字體狀態已保持: ${currentFont || "系統預設"}`
+    );
+  }, 50); // 短暫延遲確保DOM更新完成
 
   modeToggleBtn.style.transform = "scale(0.95)";
   setTimeout(() => {
@@ -1253,6 +1323,12 @@ function updateUIVisibility(mode) {
     }
   }
 
+  // 保存當前選中的字體按鈕狀態
+  const selectedFontButton = document.querySelector(
+    ".preset-font-btn.ring-2.ring-blue-500"
+  );
+  const selectedButtonId = selectedFontButton ? selectedFontButton.id : null;
+
   // 確保所有字體按鈕都顯示（無論任何模式）
   const fontButtons = [
     "loadCuteFont",
@@ -1271,6 +1347,14 @@ function updateUIVisibility(mode) {
       button.classList.remove("hidden");
     }
   });
+
+  // 恢復選中的字體按鈕狀態
+  if (selectedButtonId) {
+    const buttonToReselect = document.getElementById(selectedButtonId);
+    if (buttonToReselect && !buttonToReselect.classList.contains("ring-2")) {
+      buttonToReselect.classList.add("ring-2", "ring-blue-500");
+    }
+  }
 
   // 處理字體設定區的收合狀態
   const fontSectionContent = document.getElementById("fontSectionContent");
@@ -1293,6 +1377,21 @@ function updateUIMode(mode) {
   // 這個函數可以用來根據模式調整UI樣式
   // 例如在嬰兒模式下使用更柔和的顏色
   console.log(`UI模式已切換到：${mode}`);
+}
+
+// 更新除錯信息
+function updateDebugInfo() {
+  const debugCurrentFont = document.getElementById("debugCurrentFont");
+  const debugCurrentFontInfo = document.getElementById("debugCurrentFontInfo");
+  const debugCurrentMode = document.getElementById("debugCurrentMode");
+
+  if (debugCurrentFont && debugCurrentFontInfo && debugCurrentMode) {
+    debugCurrentFont.textContent = currentFont || "null";
+    debugCurrentFontInfo.textContent = currentFontInfo
+      ? `${currentFontInfo.type}:${currentFontInfo.name || currentFontInfo.key}`
+      : "null";
+    debugCurrentMode.textContent = currentMode;
+  }
 }
 
 // Markdown 轉換函數

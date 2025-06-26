@@ -696,6 +696,38 @@
       </div>
     </div>
 
+    <!-- 除錯面板 (開發用，可選擇性顯示) -->
+    <div
+      id="debugPanel"
+      class="fixed bottom-4 left-4 bg-gray-800 text-white text-xs p-3 rounded-lg shadow-lg opacity-80 hidden"
+      style="font-family: monospace; z-index: 40; max-width: 300px"
+    >
+      <div class="mb-1">
+        <strong>字體狀態除錯:</strong>
+      </div>
+      <div id="debugFontInfo">
+        currentFont: <span id="debugCurrentFont">null</span><br />
+        currentFontInfo: <span id="debugCurrentFontInfo">null</span><br />
+        模式: <span id="debugCurrentMode">engineer</span>
+      </div>
+      <button
+        id="toggleDebugPanel"
+        class="mt-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+      >
+        隱藏除錯
+      </button>
+    </div>
+
+    <!-- 顯示除錯面板按鈕 -->
+    <button
+      id="showDebugPanel"
+      class="fixed bottom-4 left-4 bg-gray-600 text-white text-xs px-3 py-2 rounded-lg shadow-lg hover:bg-gray-700 transition-colors"
+      style="z-index: 35"
+      title="顯示字體狀態除錯信息"
+    >
+      🐛 除錯
+    </button>
+
     <!-- JavaScript檔案 -->
     <script type="module" src="script.js"></script>
   </body>
