@@ -1109,18 +1109,103 @@ function updateDownloadButtonText() {
   btnTextEl.dataset.i18n = "downloadBtnPNG";
 }
 
+/**
+ * 產生用於輸出的 Canvas，可以指定最小字體大小
+ * @param {object} options - 選項物件
+ * @param {number} options.minFontSize - 最小字體大小
+ * @returns {HTMLCanvasElement} - 包含繪製好內容的離屏 Canvas
+ */
+function getOutputCanvas(options = {}) {
+  const { minFontSize } = options;
+
+  // 1. 從 DOM 取得所有設定
+  const textInput = document.getElementById("textInput");
+  const text = textInput.value || textInput.placeholder;
+  const textColor = getTextColor();
+  const addOutline = document.getElementById("addOutline").checked;
+  const outlineWidth = parseInt(
+    document.getElementById("outlineWidthSlider").value
+  );
+  const lines = text.split("\n");
+  const fontFamily = currentFont || "Arial, sans-serif";
+
+  // 2. 決定字體大小
+  const currentFontSetting = ctx.font; // 從主畫布取得當前的字體設定
+  const currentFontSize = parseFloat(currentFontSetting) || 72; // 解析出字體大小
+
+  let outputFontSize = currentFontSize;
+  if (minFontSize && outputFontSize < minFontSize) {
+    outputFontSize = minFontSize;
+  }
+
+  // 3. 建立離屏 Canvas
+  const offscreenCanvas = document.createElement("canvas");
+  const offscreenCtx = offscreenCanvas.getContext("2d");
+  offscreenCtx.font = `${outputFontSize}px ${fontFamily}`;
+
+  // 4. 計算所需畫布尺寸
+  const padding = 60;
+  const extraSpace = addOutline ? outlineWidth * 2 : 0;
+  const lineHeight = outputFontSize * 1.4;
+
+  let maxLineWidth = 0;
+  lines.forEach((line) => {
+    const metrics = offscreenCtx.measureText(line);
+    maxLineWidth = Math.max(maxLineWidth, metrics.width);
+  });
+
+  const totalTextHeight = lines.length * lineHeight;
+
+  const canvasWidth = maxLineWidth + padding + extraSpace;
+  const canvasHeight = totalTextHeight + padding + extraSpace;
+
+  offscreenCanvas.width = canvasWidth;
+  offscreenCanvas.height = canvasHeight;
+
+  // 5. 在離屏 Canvas 上繪製內容 (複製 renderPreview 的繪圖邏輯)
+  offscreenCtx.font = `${outputFontSize}px ${fontFamily}`;
+  offscreenCtx.textAlign = "center";
+  offscreenCtx.textBaseline = "middle";
+  offscreenCtx.globalCompositeOperation = "source-over";
+
+  const centerX = offscreenCanvas.width / 2;
+  const totalHeight = lines.length * lineHeight;
+  const startY = (offscreenCanvas.height - totalHeight) / 2 + lineHeight / 2;
+
+  lines.forEach((line, index) => {
+    const y = startY + index * lineHeight;
+
+    if (addOutline && line.trim()) {
+      const outlineColor = getOutlineColor(textColor);
+      offscreenCtx.strokeStyle = outlineColor;
+      offscreenCtx.lineWidth = outlineWidth;
+      offscreenCtx.lineJoin = "round";
+      offscreenCtx.strokeText(line, centerX, y);
+    }
+
+    if (line.trim()) {
+      offscreenCtx.fillStyle = textColor;
+      offscreenCtx.fillText(line, centerX, y);
+    }
+  });
+
+  return offscreenCanvas;
+}
+
 function downloadImage() {
+  const outputCanvas = getOutputCanvas({ minFontSize: 75 });
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
   const link = document.createElement("a");
   link.download = `font-image_${timestamp}.png`;
-  link.href = canvas.toDataURL("image/png");
+  link.href = outputCanvas.toDataURL("image/png");
   link.click();
 }
 
 async function copyToClipboard() {
   try {
+    const outputCanvas = getOutputCanvas({ minFontSize: 75 });
     const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/png")
+      outputCanvas.toBlob(resolve, "image/png")
     );
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 
