@@ -203,7 +203,7 @@ const fontLoadingStatus = new Map();
 // 字體設定
 const fontConfigs = [
   {
-    path: "public/fonts/cute.ttf",
+    path: "public/fonts/cute.woff2",
     name: "CuteFont",
     buttonId: "loadCuteFont",
     displayName: "可愛的",
@@ -211,7 +211,7 @@ const fontConfigs = [
     presetKey: "fontNameCute",
   },
   {
-    path: "public/fonts/game.ttf",
+    path: "public/fonts/game.woff2",
     name: "GameFont",
     buttonId: "loadGameFont",
     displayName: "遊戲風",
@@ -219,7 +219,7 @@ const fontConfigs = [
     presetKey: "fontNameGame",
   },
   {
-    path: "public/fonts/hacker.otf",
+    path: "public/fonts/hacker.woff2",
     name: "HackerFont",
     buttonId: "loadHackerFont",
     displayName: "駭客感",
@@ -227,7 +227,7 @@ const fontConfigs = [
     presetKey: "fontNameHacker",
   },
   {
-    path: "public/fonts/magic.ttf",
+    path: "public/fonts/magic.woff2",
     name: "MagicFont",
     buttonId: "loadMagicFont",
     displayName: "魔法風",
@@ -235,7 +235,7 @@ const fontConfigs = [
     presetKey: "fontNameMagic",
   },
   {
-    path: "public/fonts/noto.ttf",
+    path: "public/fonts/noto.woff2",
     name: "NotoFont",
     buttonId: "loadNotoFont",
     displayName: "工整的",
@@ -243,7 +243,7 @@ const fontConfigs = [
     presetKey: "fontNameNoto",
   },
   {
-    path: "public/fonts/martial.otf",
+    path: "public/fonts/martial.woff2",
     name: "MartialFont",
     buttonId: "loadMartialFont",
     displayName: "武俠感",
@@ -251,7 +251,7 @@ const fontConfigs = [
     presetKey: "fontNameMartial",
   },
   {
-    path: "public/fonts/write.ttf",
+    path: "public/fonts/write.woff2",
     name: "WriteFont",
     buttonId: "loadWriteFont",
     displayName: "日記感",
@@ -259,7 +259,7 @@ const fontConfigs = [
     presetKey: "fontNameWrite",
   },
   {
-    path: "public/fonts/mordan.otf",
+    path: "public/fonts/mordan.woff2",
     name: "MordanFont",
     buttonId: "loadMordanFont",
     displayName: "現代感",
