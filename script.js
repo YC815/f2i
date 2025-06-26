@@ -10,6 +10,83 @@ let activeToasts = []; // 追蹤當前活躍的 toast 訊息
 let translations = {}; // 存放當前語言的翻譯
 let currentFontInfo = null; // 追蹤當前載入的字體信息：{ type: 'preset'|'custom', key: string, name: string }
 
+// ** 本地儲存功能 **
+const STORAGE_KEYS = {
+  MODE: "f2i_current_mode",
+  LANGUAGE: "f2i_current_language",
+};
+
+// 從本地儲存載入設定
+function loadSettingsFromStorage() {
+  try {
+    // 載入模式設定
+    const savedMode = localStorage.getItem(STORAGE_KEYS.MODE);
+    if (savedMode && (savedMode === "engineer" || savedMode === "baby")) {
+      currentMode = savedMode;
+      console.log(`📁 從本地儲存載入模式設定: ${currentMode}`);
+    }
+
+    // 載入語系設定
+    const savedLanguage = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
+    if (savedLanguage && (savedLanguage === "zh" || savedLanguage === "en")) {
+      currentLanguage = savedLanguage;
+      console.log(`📁 從本地儲存載入語系設定: ${currentLanguage}`);
+    }
+  } catch (error) {
+    console.warn("⚠️ 載入本地儲存設定時發生錯誤:", error);
+    // 如果發生錯誤，使用預設值
+    currentMode = "engineer";
+    currentLanguage = "zh";
+  }
+}
+
+// 將設定保存到本地儲存
+function saveSettingsToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEYS.MODE, currentMode);
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, currentLanguage);
+    console.log(
+      `💾 設定已保存到本地儲存 - 模式: ${currentMode}, 語系: ${currentLanguage}`
+    );
+  } catch (error) {
+    console.warn("⚠️ 保存設定到本地儲存時發生錯誤:", error);
+  }
+}
+
+// 初始化浮動按鈕狀態
+function initializeFloatingButtons() {
+  const modeToggleBtn = document.getElementById("modeToggleBtn");
+  const languageToggleBtn = document.getElementById("languageToggleBtn");
+  const engineerIcon = document.getElementById("engineerIcon");
+  const babyIcon = document.getElementById("babyIcon");
+  const languageIndicator = document.getElementById("languageIndicator");
+
+  // 根據當前模式設定模式切換按鈕
+  if (currentMode === "baby") {
+    engineerIcon.classList.add("hidden");
+    babyIcon.classList.remove("hidden");
+    modeToggleBtn.classList.remove("hover:border-blue-300");
+    modeToggleBtn.classList.add("hover:border-pink-300");
+    modeToggleBtn.title =
+      translations.modeToggleTitleCustom || "切換到工程師模式";
+  } else {
+    babyIcon.classList.add("hidden");
+    engineerIcon.classList.remove("hidden");
+    modeToggleBtn.classList.remove("hover:border-pink-300");
+    modeToggleBtn.classList.add("hover:border-blue-300");
+    modeToggleBtn.title = translations.modeToggleTitle || "切換到簡易模式";
+  }
+
+  // 根據當前語系設定語言切換按鈕
+  if (currentLanguage === "en") {
+    languageIndicator.classList.remove("bg-green-500");
+    languageIndicator.classList.add("bg-blue-500");
+  } else {
+    languageIndicator.classList.remove("bg-blue-500");
+    languageIndicator.classList.add("bg-green-500");
+  }
+}
+
 // 設定預設畫布大小
 canvas.width = 400;
 canvas.height = 200;
@@ -20,31 +97,37 @@ ctx.globalAlpha = 1.0;
 // 初始化
 document.addEventListener("DOMContentLoaded", async function () {
   try {
-    // 1. 先載入翻譯
+    // 1. 從本地儲存載入使用者設定
+    loadSettingsFromStorage();
+
+    // 2. 載入對應語系的翻譯
     await loadTranslations(currentLanguage);
 
-    // 2. 設定預設文字（但先不要渲染）
+    // 3. 設定預設文字（但先不要渲染）
     const textInput = document.getElementById("textInput");
     textInput.value = translations.textInputDefault || "範例文字";
 
-    // 3. 設定預設背景
+    // 4. 設定預設背景
     setPreviewBackground("checker");
 
-    // 4. 初始化其他設定
+    // 5. 初始化其他設定
     setupEventListeners();
     updateDownloadButtonText();
 
-    // 5. 更新UI語言和可見性
+    // 6. 更新UI語言和可見性（使用載入的設定）
     updateUILanguage(currentLanguage);
     updateUIVisibility(currentMode);
 
-    // 6. 初始化字體按鈕為禁用狀態
+    // 7. 初始化浮動按鈕狀態（根據載入的設定）
+    initializeFloatingButtons();
+
+    // 8. 初始化字體按鈕為禁用狀態
     initializeFontButtons();
 
-    // 7. 渲染初始預覽（使用系統字體）
+    // 9. 渲染初始預覽（使用系統字體）
     renderPreview();
 
-    // 8. 開始背景載入字體（不阻塞主線程）
+    // 10. 開始背景載入字體（不阻塞主線程）
     startProgressiveFontLoading();
   } catch (error) {
     console.error("初始化失敗:", error);
@@ -1106,6 +1189,9 @@ function toggleMode() {
 
   currentMode = currentMode === "engineer" ? "baby" : "engineer";
 
+  // 保存設定到本地儲存
+  saveSettingsToStorage();
+
   const engineerIcon = document.getElementById("engineerIcon");
   const babyIcon = document.getElementById("babyIcon");
   const modeToggleBtn = document.getElementById("modeToggleBtn");
@@ -1176,6 +1262,10 @@ function toggleMode() {
 // 語言切換功能
 async function toggleLanguage() {
   currentLanguage = currentLanguage === "zh" ? "en" : "zh";
+
+  // 保存設定到本地儲存
+  saveSettingsToStorage();
+
   await updateUILanguage(currentLanguage);
 
   const languageIndicator = document.getElementById("languageIndicator");
