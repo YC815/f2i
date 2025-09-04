@@ -177,8 +177,8 @@ function initializeFloatingButtons() {
 }
 
 // 設定預設畫布大小
-canvas.width = 400;
-canvas.height = 200;
+canvas.width = 500;
+canvas.height = 300;
 
 // 確保 canvas 支援透明背景
 ctx.globalAlpha = 1.0;
@@ -1002,10 +1002,10 @@ function renderPreview() {
   let fontFamily = currentFont || "Arial, sans-serif";
 
   // 計算畫布尺寸
-  const padding = 60;
+  const padding = 100;
   const extraSpace = addOutline ? outlineWidth * 2 : 0;
-  const canvasWidth = Math.max(400, canvas.width);
-  const canvasHeight = Math.max(200, canvas.height);
+  const canvasWidth = Math.max(500, canvas.width);
+  const canvasHeight = Math.max(300, canvas.height);
 
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
@@ -1144,7 +1144,7 @@ function getOutputCanvas(options = {}) {
   offscreenCtx.font = `${outputFontSize}px ${fontFamily}`;
 
   // 4. 計算所需畫布尺寸
-  const padding = 60;
+  const padding = 100;
   const extraSpace = addOutline ? outlineWidth * 2 : 0;
   const lineHeight = outputFontSize * 1.4;
 
@@ -1193,7 +1193,7 @@ function getOutputCanvas(options = {}) {
 }
 
 function downloadImage() {
-  const outputCanvas = getOutputCanvas({ minFontSize: 75 });
+  const outputCanvas = getOutputCanvas({ minFontSize: 150 });
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
   const link = document.createElement("a");
   link.download = `font-image_${timestamp}.png`;
@@ -1203,7 +1203,7 @@ function downloadImage() {
 
 async function copyToClipboard() {
   try {
-    const outputCanvas = getOutputCanvas({ minFontSize: 75 });
+    const outputCanvas = getOutputCanvas({ minFontSize: 150 });
     const blob = await new Promise((resolve) =>
       outputCanvas.toBlob(resolve, "image/png")
     );
