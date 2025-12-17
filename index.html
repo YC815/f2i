@@ -590,12 +590,13 @@
             </div>
 
             <div class="space-y-3">
+              <!-- 標準畫質下載按鈕 -->
               <button
-                id="downloadBtn"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center"
+                id="downloadBtnStandard"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center"
               >
                 <svg
-                  class="w-5 h-5 mr-2"
+                  class="w-4 h-4 mr-2"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -607,9 +608,34 @@
                     d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   ></path>
                 </svg>
-                <span id="downloadBtnText" data-i18n="downloadBtnSVG"
-                  >下載圖片 (SVG)</span
+                <span>
+                  <span data-i18n="downloadBtnStandard">下載標準畫質</span>
+                  <span id="fileSizeStandard" class="text-xs opacity-75"></span>
+                </span>
+              </button>
+
+              <!-- 超高畫質下載按鈕 -->
+              <button
+                id="downloadBtnUltra"
+                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 px-4 rounded-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 flex items-center justify-center"
+              >
+                <svg
+                  class="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  ></path>
+                </svg>
+                <span>
+                  <span data-i18n="downloadBtnUltra">下載超高畫質</span>
+                  <span id="fileSizeUltra" class="text-xs opacity-75"></span>
+                </span>
               </button>
 
               <button

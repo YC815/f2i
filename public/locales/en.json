@@ -41,6 +41,8 @@
     "outputFormatHelp": "(Default is SVG vector)",
     "downloadBtnSVG": "Download Image (SVG)",
     "downloadBtnPNG": "Download Image (PNG)",
+    "downloadBtnStandard": "Download Standard Quality",
+    "downloadBtnUltra": "Download Ultra Quality",
     "copyBtn": "Copy to Clipboard",
     "resetBtn": "🔄 Reset All Settings",
     "imageInfoTitle": "Image Info",

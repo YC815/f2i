@@ -41,6 +41,8 @@
     "outputFormatHelp": "(預設為SVG向量圖)",
     "downloadBtnSVG": "下載圖片 (SVG)",
     "downloadBtnPNG": "下載圖片 (PNG)",
+    "downloadBtnStandard": "下載標準畫質",
+    "downloadBtnUltra": "下載超高畫質",
     "copyBtn": "複製到剪貼簿",
     "resetBtn": "🔄 重設所有設定",
     "imageInfoTitle": "圖片資訊",

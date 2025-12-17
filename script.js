@@ -204,7 +204,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // 6. 初始化其他設定
     setupEventListeners();
-    updateDownloadButtonText();
 
     // 7. 更新UI語言和可見性（使用載入的設定）
     updateUILanguage(currentLanguage);
@@ -694,18 +693,18 @@ function setupEventListeners() {
   }
 
   // 輸出格式選項
-  const usePngOutput = document.getElementById("usePngOutput");
-  if (usePngOutput) {
-    usePngOutput.addEventListener("change", updateDownloadButtonText);
-  }
 
   // 按鈕事件
-  const downloadBtn = document.getElementById("downloadBtn");
+  const downloadBtnStandard = document.getElementById("downloadBtnStandard");
+  const downloadBtnUltra = document.getElementById("downloadBtnUltra");
   const copyBtn = document.getElementById("copyBtn");
   const resetBtn = document.getElementById("resetBtn");
 
-  if (downloadBtn) {
-    downloadBtn.addEventListener("click", downloadImage);
+  if (downloadBtnStandard) {
+    downloadBtnStandard.addEventListener("click", () => downloadImage("standard"));
+  }
+  if (downloadBtnUltra) {
+    downloadBtnUltra.addEventListener("click", () => downloadImage("ultra"));
   }
   if (copyBtn) {
     copyBtn.addEventListener("click", copyToClipboard);
@@ -1084,6 +1083,9 @@ function renderPreview() {
 
   // 更新圖片資訊
   updateImageInfo();
+
+  // 更新檔案大小預估
+  updateFileSizeEstimates();
 }
 
 function updateImageInfo() {
@@ -1102,11 +1104,22 @@ function updateImageInfo() {
   document.getElementById("imageInfo").classList.remove("hidden");
 }
 
-function updateDownloadButtonText() {
-  // 只顯示 PNG
-  const btnTextEl = document.getElementById("downloadBtnText");
-  btnTextEl.textContent = translations["downloadBtnPNG"];
-  btnTextEl.dataset.i18n = "downloadBtnPNG";
+/**
+ * 更新按鈕上的檔案大小預估
+ */
+function updateFileSizeEstimates() {
+  const standardSize = estimateFileSize(1);
+  const ultraSize = estimateFileSize(16);
+
+  const standardEl = document.getElementById("fileSizeStandard");
+  const ultraEl = document.getElementById("fileSizeUltra");
+
+  if (standardEl) {
+    standardEl.textContent = standardSize;
+  }
+  if (ultraEl) {
+    ultraEl.textContent = ultraSize;
+  }
 }
 
 /**
@@ -1116,7 +1129,7 @@ function updateDownloadButtonText() {
  * @returns {HTMLCanvasElement} - 包含繪製好內容的離屏 Canvas
  */
 function getOutputCanvas(options = {}) {
-  const { minFontSize } = options;
+  const { minFontSize, scale = 1 } = options;
 
   // 1. 從 DOM 取得所有設定
   const textInput = document.getElementById("textInput");
@@ -1159,8 +1172,11 @@ function getOutputCanvas(options = {}) {
   const canvasWidth = maxLineWidth + padding + extraSpace;
   const canvasHeight = totalTextHeight + padding + extraSpace;
 
-  offscreenCanvas.width = canvasWidth;
-  offscreenCanvas.height = canvasHeight;
+  offscreenCanvas.width = canvasWidth * scale;
+  offscreenCanvas.height = canvasHeight * scale;
+
+  // 應用縮放變換
+  offscreenCtx.scale(scale, scale);
 
   // 5. 在離屏 Canvas 上繪製內容 (複製 renderPreview 的繪圖邏輯)
   offscreenCtx.font = `${outputFontSize}px ${fontFamily}`;
@@ -1168,9 +1184,10 @@ function getOutputCanvas(options = {}) {
   offscreenCtx.textBaseline = "middle";
   offscreenCtx.globalCompositeOperation = "source-over";
 
-  const centerX = offscreenCanvas.width / 2;
+  // 使用邏輯尺寸（縮放前的尺寸）計算位置
+  const centerX = canvasWidth / 2;
   const totalHeight = lines.length * lineHeight;
-  const startY = (offscreenCanvas.height - totalHeight) / 2 + lineHeight / 2;
+  const startY = (canvasHeight - totalHeight) / 2 + lineHeight / 2;
 
   lines.forEach((line, index) => {
     const y = startY + index * lineHeight;
@@ -1192,18 +1209,48 @@ function getOutputCanvas(options = {}) {
   return offscreenCanvas;
 }
 
-function downloadImage() {
-  const outputCanvas = getOutputCanvas({ minFontSize: 150 });
+/**
+ * 估算 PNG 檔案大小
+ * @param {number} scale - 縮放倍數
+ * @returns {string} - 格式化的檔案大小字串
+ */
+function estimateFileSize(scale = 1) {
+  try {
+    const tempCanvas = getOutputCanvas({ minFontSize: 150, scale: scale });
+    const dataURL = tempCanvas.toDataURL("image/png");
+    const base64Length = dataURL.split(",")[1].length;
+    const sizeInBytes = (base64Length * 3) / 4;
+    const sizeInKB = sizeInBytes / 1024;
+
+    if (sizeInKB < 1024) {
+      return ` (~${Math.round(sizeInKB)} KB)`;
+    } else {
+      return ` (~${(sizeInKB / 1024).toFixed(1)} MB)`;
+    }
+  } catch (error) {
+    console.error("估算檔案大小失敗:", error);
+    return "";
+  }
+}
+
+/**
+ * 下載圖片
+ * @param {string} quality - 畫質選項 ('standard' 或 'ultra')
+ */
+function downloadImage(quality = "standard") {
+  const scale = quality === "ultra" ? 16 : 1;
+  const outputCanvas = getOutputCanvas({ minFontSize: 150, scale: scale });
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
   const link = document.createElement("a");
-  link.download = `font-image_${timestamp}.png`;
+  const qualityLabel = quality === "ultra" ? "ultra" : "standard";
+  link.download = `font-image_${qualityLabel}_${timestamp}.png`;
   link.href = outputCanvas.toDataURL("image/png");
   link.click();
 }
 
 async function copyToClipboard() {
   try {
-    const outputCanvas = getOutputCanvas({ minFontSize: 150 });
+    const outputCanvas = getOutputCanvas({ minFontSize: 150, scale: 16 });
     const blob = await new Promise((resolve) =>
       outputCanvas.toBlob(resolve, "image/png")
     );
@@ -1276,7 +1323,6 @@ function resetSettings() {
 
     currentPreviewBg = "checker";
     setPreviewBackground("checker");
-    updateDownloadButtonText();
     renderPreview();
   }
 }
@@ -1556,9 +1602,6 @@ async function updateUILanguage(language) {
   if (textInput.value === defaultZh || textInput.value === defaultEn) {
     textInput.value = translations.textInputDefault;
   }
-
-  // Update components
-  updateDownloadButtonText();
 
   // Render canvas with potentially new default text
   renderPreview();
