@@ -10,6 +10,18 @@ let currentLanguage = "zh"; // 追蹤當前語言：zh 或 en
 let activeToasts = []; // 追蹤當前活躍的 toast 訊息
 let translations = {}; // 存放當前語言的翻譯
 let currentFontInfo = null; // 追蹤當前載入的字體信息：{ type: 'preset'|'custom', key: string, name: string }
+let debounceTimer = null; // 用於 debounce 文字輸入事件
+let fileSizeCache = { standard: null, ultra: null }; // 快取檔案大小估算結果
+let layoutCache = {
+  // 快取佈局計算結果，避免顏色變更時重新計算
+  text: "",
+  font: "",
+  fontSize: 72,
+  lineHeight: 0,
+  lines: [],
+  canvasWidth: 0,
+  canvasHeight: 0,
+};
 
 // ** IndexedDB Caching for Fonts **
 const DB_NAME = "font_cache_db";
@@ -593,23 +605,26 @@ function setupEventListeners() {
     }
   });
 
-  // 文字輸入 - 使用 input 和 change 事件
+  // 文字輸入 - 使用 input 和 change 事件，加入 debounce 優化
   const textInput = document.getElementById("textInput");
   if (textInput) {
     textInput.addEventListener("input", () => {
-      requestAnimationFrame(renderPreview); // 使用 requestAnimationFrame 優化效能
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        requestAnimationFrame(renderPreview);
+      }, 16); // ~60fps，減少快速打字時的重繪次數
     });
     textInput.addEventListener("change", renderPreview);
   }
 
-  // 文字顏色選擇 - 所有顏色相關的變更都即時更新
+  // 文字顏色選擇 - 顏色變更只需重繪，不需重新計算佈局
   document.querySelectorAll('input[name="text_color"]').forEach((radio) => {
     radio.addEventListener("change", () =>
-      requestAnimationFrame(renderPreview)
+      requestAnimationFrame(renderWithCurrentLayout)
     );
   });
 
-  // 自訂顏色 - 使用 input 事件實現即時更新
+  // 自訂顏色 - 顏色變更只需重繪，不需重新計算佈局
   const customColor = document.getElementById("customColor");
   if (customColor) {
     customColor.addEventListener("input", function () {
@@ -619,7 +634,7 @@ function setupEventListeners() {
       if (customColorRadio) {
         customColorRadio.checked = true;
       }
-      requestAnimationFrame(renderPreview);
+      requestAnimationFrame(renderWithCurrentLayout);
     });
   }
 
@@ -633,7 +648,7 @@ function setupEventListeners() {
     });
   }
 
-  // 外框寬度 - 使用 input 事件實現即時更新
+  // 外框寬度 - 寬度變更只需重繪，不需重新計算佈局（為了流暢度）
   const outlineWidthSlider = document.getElementById("outlineWidthSlider");
   if (outlineWidthSlider) {
     outlineWidthSlider.addEventListener("input", function () {
@@ -643,18 +658,18 @@ function setupEventListeners() {
       if (outlineWidthDisplay) {
         outlineWidthDisplay.textContent = this.value;
       }
-      requestAnimationFrame(renderPreview);
+      requestAnimationFrame(renderWithCurrentLayout);
     });
   }
 
-  // 外框顏色選擇
+  // 外框顏色選擇 - 顏色變更只需重繪，不需重新計算佈局
   document.querySelectorAll('input[name="outline_color"]').forEach((radio) => {
     radio.addEventListener("change", () =>
-      requestAnimationFrame(renderPreview)
+      requestAnimationFrame(renderWithCurrentLayout)
     );
   });
 
-  // 自訂外框顏色 - 使用 input 事件實現即時更新
+  // 自訂外框顏色 - 顏色變更只需重繪，不需重新計算佈局
   const customOutlineColor = document.getElementById("customOutlineColor");
   if (customOutlineColor) {
     customOutlineColor.addEventListener("input", function () {
@@ -664,7 +679,7 @@ function setupEventListeners() {
       if (customOutlineColorRadio) {
         customOutlineColorRadio.checked = true;
       }
-      requestAnimationFrame(renderPreview);
+      requestAnimationFrame(renderWithCurrentLayout);
     });
   }
 
@@ -702,9 +717,13 @@ function setupEventListeners() {
 
   if (downloadBtnStandard) {
     downloadBtnStandard.addEventListener("click", () => downloadImage("standard"));
+    // 延遲載入檔案大小：滑鼠移到按鈕上時才計算
+    downloadBtnStandard.addEventListener("mouseenter", () => lazyLoadFileSize("standard"));
   }
   if (downloadBtnUltra) {
     downloadBtnUltra.addEventListener("click", () => downloadImage("ultra"));
+    // 延遲載入檔案大小：滑鼠移到按鈕上時才計算
+    downloadBtnUltra.addEventListener("mouseenter", () => lazyLoadFileSize("ultra"));
   }
   if (copyBtn) {
     copyBtn.addEventListener("click", copyToClipboard);
@@ -985,10 +1004,12 @@ function updatePreviewBackground() {
   }
 }
 
-function renderPreview() {
+/**
+ * 計算佈局（字體大小、行高等），只在文字或字體變更時呼叫
+ */
+function calculateLayout() {
   const textInput = document.getElementById("textInput");
   const text = textInput.value || textInput.placeholder;
-  const textColor = getTextColor();
   const addOutline = document.getElementById("addOutline").checked;
   const outlineWidth = parseInt(
     document.getElementById("outlineWidthSlider").value
@@ -998,7 +1019,7 @@ function renderPreview() {
   const lines = text.split("\n");
 
   // 設定字體
-  let fontFamily = currentFont || "Arial, sans-serif";
+  const fontFamily = currentFont || "Arial, sans-serif";
 
   // 計算畫布尺寸
   const padding = 100;
@@ -1006,8 +1027,11 @@ function renderPreview() {
   const canvasWidth = Math.max(500, canvas.width);
   const canvasHeight = Math.max(300, canvas.height);
 
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
+  // 只在尺寸真的變更時才重設（避免觸發不必要的 reflow）
+  if (canvas.width !== canvasWidth || canvas.height !== canvasHeight) {
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+  }
 
   // 計算最佳字體大小
   const maxWidth = canvasWidth - padding - extraSpace;
@@ -1047,6 +1071,33 @@ function renderPreview() {
   }
 
   fontSize = maxSize; // 使用找到的最佳大小
+
+  // 更新快取
+  layoutCache = {
+    text,
+    font: fontFamily,
+    fontSize,
+    lineHeight: fontSize * 1.4,
+    lines,
+    canvasWidth,
+    canvasHeight,
+  };
+}
+
+/**
+ * 使用當前快取的佈局渲染（只渲染，不計算），用於顏色變更等不需要重新計算佈局的情況
+ */
+function renderWithCurrentLayout() {
+  const textColor = getTextColor();
+  const addOutline = document.getElementById("addOutline").checked;
+  const outlineWidth = parseInt(
+    document.getElementById("outlineWidthSlider").value
+  );
+
+  const { fontSize, lineHeight, lines } = layoutCache;
+  const fontFamily = currentFont || "Arial, sans-serif";
+
+  // 設定 canvas context
   ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -1055,8 +1106,7 @@ function renderPreview() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.globalCompositeOperation = "source-over";
 
-  // 計算行高和總高度
-  const lineHeight = fontSize * 1.4;
+  // 計算總高度和起始位置
   const totalHeight = lines.length * lineHeight;
   const startY = (canvas.height - totalHeight) / 2 + lineHeight / 2;
   const centerX = canvas.width / 2;
@@ -1083,9 +1133,25 @@ function renderPreview() {
 
   // 更新圖片資訊
   updateImageInfo();
+}
 
-  // 更新檔案大小預估
-  updateFileSizeEstimates();
+/**
+ * 完整的重新預覽渲染（計算 + 渲染）
+ */
+function renderPreview() {
+  const textInput = document.getElementById("textInput");
+  const text = textInput.value || textInput.placeholder;
+  const fontFamily = currentFont || "Arial, sans-serif";
+
+  // 只在文字或字體變更時重新計算佈局
+  if (text !== layoutCache.text || fontFamily !== layoutCache.font) {
+    calculateLayout();
+    // 清除檔案大小快取（文字或字體變更時）
+    invalidateFileSizeCache();
+  }
+
+  // 總是渲染（使用快取的佈局）
+  renderWithCurrentLayout();
 }
 
 function updateImageInfo() {
@@ -1107,6 +1173,39 @@ function updateImageInfo() {
 /**
  * 更新按鈕上的檔案大小預估
  */
+/**
+ * 清除檔案大小快取（文字或字體變更時呼叫）
+ */
+function invalidateFileSizeCache() {
+  fileSizeCache = { standard: null, ultra: null };
+  // 清除 DOM 顯示
+  const standardEl = document.getElementById("fileSizeStandard");
+  const ultraEl = document.getElementById("fileSizeUltra");
+  if (standardEl) standardEl.textContent = "";
+  if (ultraEl) ultraEl.textContent = "";
+}
+
+/**
+ * 延遲載入檔案大小估算（當滑鼠移到按鈕上時才計算）
+ * @param {string} quality - 'standard' 或 'ultra'
+ */
+function lazyLoadFileSize(quality) {
+  if (fileSizeCache[quality]) {
+    return; // 已有快取，不重複計算
+  }
+
+  const scale = quality === "ultra" ? 16 : 1;
+  const size = estimateFileSize(scale);
+  fileSizeCache[quality] = size;
+
+  const el = document.getElementById(
+    quality === "standard" ? "fileSizeStandard" : "fileSizeUltra"
+  );
+  if (el) {
+    el.textContent = size;
+  }
+}
+
 function updateFileSizeEstimates() {
   const standardSize = estimateFileSize(1);
   const ultraSize = estimateFileSize(16);
